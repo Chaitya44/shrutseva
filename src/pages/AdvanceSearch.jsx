@@ -238,7 +238,7 @@ export default function AdvanceSearch() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative bg-white/85 backdrop-blur-2xl rounded-[24px] py-3.5 px-4 sm:py-4 sm:px-6 shadow-[0_20px_60px_rgba(10,37,64,0.06)] border border-white mb-5"
+        className="relative z-20 bg-white/85 backdrop-blur-2xl rounded-[24px] py-3.5 px-4 sm:py-4 sm:px-6 shadow-[0_20px_60px_rgba(10,37,64,0.06)] border border-white mb-5"
       >
         <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-white via-white/40 to-transparent pointer-events-none rounded-t-[24px]" />
 

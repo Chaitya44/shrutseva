@@ -159,7 +159,7 @@ export default function QuickSearch() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative mb-8"
+        className="relative z-20 mb-8"
       >
         <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center bg-white/90 backdrop-blur-2xl rounded-[24px] sm:rounded-full p-1 sm:p-1.5 shadow-[0_16px_40px_rgba(20,184,166,0.18)] border border-white">
           {/* Glossy top glass reflection overlay */}
