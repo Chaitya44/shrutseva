@@ -1,13 +1,74 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { Plus, Minus, ChevronLeft, ChevronRight, MoreHorizontal, Loader2 } from 'lucide-react';
 import ExpandedBookDetails from './ExpandedBookDetails';
+import { decryptAES128 } from '../utils/crypto';
 
 export default function BookTable({ books }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
+  const [detailsCache, setDetailsCache] = useState({});
+  const [loadingIds, setLoadingIds] = useState({});
 
-  const toggleRow = (id) => {
-    setExpandedRowId(expandedRowId === id ? null : id);
+  const toggleRow = async (id, masterSsid) => {
+    const isCurrentlyExpanded = expandedRowId === id;
+    setExpandedRowId(isCurrentlyExpanded ? null : id);
+
+    // If expanding and not in cache, fetch rich details
+    if (!isCurrentlyExpanded && !detailsCache[id]) {
+      setLoadingIds(prev => ({ ...prev, [id]: true }));
+      try {
+        const response = await fetch(`/front/get_book_details?master_ssid=${masterSsid}`);
+        const result = await response.json();
+        
+        if (result && result.data) {
+          const detail = result.data;
+          
+          // Decrypt encrypted fields in real time
+          const decryptedBookNum = await decryptAES128(detail.book_number);
+          const decryptedSname = await decryptAES128(detail.sname);
+
+          // Split lists and map to array of Bhandar objects
+          const codes = detail.bhandar_code ? detail.bhandar_code.split(',') : [];
+          const bookNums = decryptedBookNum ? decryptedBookNum.split(',') : [];
+          const names = decryptedSname ? decryptedSname.split('|') : [];
+          const cities = detail.city ? detail.city.split('|') : [];
+          const mobiles = detail.mobile ? detail.mobile.split(',') : [];
+
+          const bhandars = codes.map((code, idx) => ({
+            bookNumber: bookNums[idx] || '-',
+            name: names[idx] || '-',
+            city: cities[idx] || '-',
+            contact: mobiles[idx] || '-'
+          }));
+
+          // Construct mapped details object matching what ExpandedBookDetails expects
+          const mappedDetails = {
+            id: detail.master_ssid,
+            name: detail.book_name,
+            part: detail.part,
+            alternateName: detail.alternate_name,
+            kruti: detail.Kruti,
+            author: detail.author,
+            editor: detail.editor,
+            languageFull: detail.lang_name,
+            publisher: detail.publisher,
+            page: detail.page,
+            year: detail.year,
+            edition: detail.edition,
+            subject: detail.subject,
+            note: detail.book_note,
+            particular: detail.perticular,
+            bhandars: bhandars
+          };
+
+          setDetailsCache(prev => ({ ...prev, [id]: mappedDetails }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch book details:", err);
+      } finally {
+        setLoadingIds(prev => ({ ...prev, [id]: false }));
+      }
+    }
   };
 
   return (
@@ -30,6 +91,8 @@ export default function BookTable({ books }) {
           <tbody>
             {books.map((book, index) => {
               const isExpanded = expandedRowId === book.id;
+              const isLoading = loadingIds[book.id];
+              const details = detailsCache[book.id];
               
               return (
                 <React.Fragment key={book.id}>
@@ -37,7 +100,7 @@ export default function BookTable({ books }) {
                   <tr className={`border-b border-neutral-100 transition-colors ${isExpanded ? 'bg-[#F8FAFC]' : 'hover:bg-neutral-50 bg-white'}`}>
                     <td className="px-5 py-4 align-middle">
                       <button
-                        onClick={() => toggleRow(book.id)}
+                        onClick={() => toggleRow(book.id, book.master_ssid || book.id)}
                         className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm ${
                           isExpanded 
                             ? 'bg-[#1565FF] text-white' 
@@ -83,7 +146,16 @@ export default function BookTable({ books }) {
                             exit={{ height: 0, opacity: 0 }}
                             transition={{ duration: 0.3, ease: 'easeInOut' }}
                           >
-                            <ExpandedBookDetails book={book} />
+                            {isLoading ? (
+                              <div className="flex flex-col items-center justify-center py-10 gap-3 text-neutral-500 font-semibold bg-gradient-to-br from-[#E3F2FD]/20 to-[#E0F7FA]/10">
+                                <Loader2 size={32} className="text-[#1565FF] animate-spin" />
+                                <span className="text-[13px] tracking-wide animate-pulse">Decrypting and loading available inventory details...</span>
+                              </div>
+                            ) : details ? (
+                              <ExpandedBookDetails book={details} />
+                            ) : (
+                              <div className="py-6 text-center text-neutral-400 font-medium">Failed to load details.</div>
+                            )}
                           </motion.div>
                         </td>
                       </tr>
@@ -100,10 +172,13 @@ export default function BookTable({ books }) {
       <div className="block md:hidden divide-y divide-neutral-100">
         {books.map((book) => {
           const isExpanded = expandedRowId === book.id;
+          const isLoading = loadingIds[book.id];
+          const details = detailsCache[book.id];
+
           return (
             <div key={book.id} className={`p-4 transition-all duration-300 ${isExpanded ? 'bg-[#F8FAFC]' : 'bg-white'}`}>
               <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0" onClick={() => toggleRow(book.id)}>
+                <div className="flex-1 min-w-0" onClick={() => toggleRow(book.id, book.master_ssid || book.id)}>
                   <div className="flex items-center gap-2 mb-1">
                     {book.language ? (
                       <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[10px] uppercase tracking-wider">
@@ -123,7 +198,7 @@ export default function BookTable({ books }) {
                   </p>
                 </div>
                 <button
-                  onClick={() => toggleRow(book.id)}
+                  onClick={() => toggleRow(book.id, book.master_ssid || book.id)}
                   className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all shadow-sm ${
                     isExpanded 
                       ? 'bg-[#1565FF] text-white rotate-180' 
@@ -144,7 +219,16 @@ export default function BookTable({ books }) {
                     transition={{ duration: 0.3, ease: 'easeInOut' }}
                     className="mt-4 border-t border-neutral-100 pt-3 overflow-hidden"
                   >
-                    <ExpandedBookDetails book={book} />
+                    {isLoading ? (
+                      <div className="flex flex-col items-center justify-center py-8 gap-2 text-neutral-500 font-semibold bg-gradient-to-br from-[#E3F2FD]/20 to-[#E0F7FA]/10">
+                        <Loader2 size={24} className="text-[#1565FF] animate-spin" />
+                        <span className="text-[12px] tracking-wide animate-pulse">Decrypting available details...</span>
+                      </div>
+                    ) : details ? (
+                      <ExpandedBookDetails book={details} />
+                    ) : (
+                      <div className="py-4 text-center text-neutral-400 font-medium">Failed to load details.</div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
