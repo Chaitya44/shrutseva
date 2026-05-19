@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/front/:path*",
+      "destination": "http://147.93.155.190/test/front/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "http://147.93.155.190/test/api/:path*"
+    },
+    {
+      "source": "/get_bhandars_list",
+      "destination": "http://147.93.155.190/test/get_bhandars_list"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
