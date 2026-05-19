@@ -20,6 +20,11 @@ export default function AdvanceSearch() {
   const [focusedField, setFocusedField] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
 
+  const targetTransLang = (activeLangDropdown === 'Hindi' || activeLangDropdown === 'Sanskrit' || activeLangDropdown === 'Prakrit')
+    ? 'Hindi'
+    : (activeLangDropdown === 'Gujarati' ? 'Gujarati' : activeLang);
+
+
   
   // Dropdown States
   const [cities, setCities] = useState([]);
@@ -112,7 +117,7 @@ export default function AdvanceSearch() {
 
   // Live Google Indic Transliteration suggestion fetching for Advance Search fields
   useEffect(() => {
-    if (!focusedField || activeLang === 'English') {
+    if (!focusedField || targetTransLang === 'English' || activeLangDropdown === 'English') {
       setSuggestions([]);
       return;
     }
@@ -137,12 +142,12 @@ export default function AdvanceSearch() {
     }
 
     const delayTimer = setTimeout(async () => {
-      const candidates = await fetchGoogleTransliteration(activeVal, activeLang);
+      const candidates = await fetchGoogleTransliteration(activeVal, targetTransLang);
       setSuggestions(candidates);
     }, 250);
 
     return () => clearTimeout(delayTimer);
-  }, [title, author, editor, publisher, subject, particular, focusedField, activeLang]);
+  }, [title, author, editor, publisher, subject, particular, focusedField, targetTransLang]);
 
   // Clear Form Fields
   const handleClear = () => {
@@ -386,6 +391,11 @@ export default function AdvanceSearch() {
                       onClick={() => {
                         setActiveLangDropdown(lang);
                         setShowLangDropdown(false);
+                        if (lang === 'Hindi' || lang === 'Sanskrit' || lang === 'Prakrit') {
+                          setActiveLang('Hindi');
+                        } else if (lang === 'Gujarati') {
+                          setActiveLang('Gujarati');
+                        }
                       }}
                       className={`w-full text-left px-4 py-2 text-[13px] font-bold cursor-pointer transition-colors ${
                         activeLangDropdown === lang ? 'bg-[#00ACC1]/10 text-[#00ACC1]' : 'text-neutral-800 hover:bg-neutral-50'
@@ -446,7 +456,7 @@ export default function AdvanceSearch() {
             >
               <span className="text-[12px] font-bold text-neutral-400 mr-1 flex items-center gap-1 shrink-0">
                 <Sparkles size={12} className="text-[#FF6B00] animate-pulse" />
-                Did you mean for {focusedField} ({activeLang === 'Hindi' ? 'Hindi' : 'Gujarati'}):
+                Did you mean for {focusedField} ({targetTransLang}):
               </span>
               {suggestions.map((cand, idx) => (
                 <button
