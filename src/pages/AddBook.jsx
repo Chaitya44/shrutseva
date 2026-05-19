@@ -1,81 +1,19 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Hash, Type, BookMarked, User, Edit3, Globe, FileText,
   Calendar, Layers, Building2, Tag, StickyNote, Plus, RotateCcw,
   Info, BookPlus, Printer, Image, Database, ChevronLeft, ChevronRight,
-  ChevronsLeft, ChevronsRight
+  ChevronsLeft, ChevronsRight, Search, Check, Copy
 } from 'lucide-react';
 import BhandarPageSelector from '../components/BhandarPageSelector';
-
-
-// ── Master data (will be populated from API) ─────────────────────────────────
-const MOCK_DATA = [
-  {
-    id: 'M001',
-    size: 'A',
-    num: 'B-1024',
-    name: 'Kalpa Sutra',
-    alt: 'Bhadrabahu Samhita',
-    part: 'Vol 1',
-    kruti: 'Scripture Copy',
-    author: 'Acharya Bhadrabahu',
-    editor: 'Muni Ramprasad',
-    lang: 'G',
-    page: '120',
-    yearType: 'VS',
-    year: '2020',
-    edition: '2nd',
-    publisher: 'Tyag Trust Press',
-    subject: 'Scriptures',
-    particular: 'Old Manuscript Copy'
-  },
-  {
-    id: 'M002',
-    size: 'B',
-    num: 'B-2056',
-    name: 'Tattvartha Sutra',
-    alt: 'Jain Philosophy',
-    part: 'Vol 2',
-    kruti: 'Commentary Work',
-    author: 'Acharya Umaswati',
-    editor: 'Pandit Nathuram',
-    lang: 'H',
-    page: '240',
-    yearType: 'AD',
-    year: '2018',
-    edition: '3rd',
-    publisher: 'Jain Gyan Bhandar',
-    subject: 'Philosophy',
-    particular: 'Golden Lettering'
-  },
-  {
-    id: 'M003',
-    size: 'C',
-    num: 'B-3091',
-    name: 'Bhaktamara Stotra',
-    alt: 'Devotional Hymns',
-    part: 'Vol 1',
-    kruti: 'Hymn Collection',
-    author: 'Acharya Manatunga',
-    editor: 'Shastri Jaydev',
-    lang: 'E',
-    page: '80',
-    yearType: 'VS',
-    year: '2022',
-    edition: '1st',
-    publisher: 'Divya Press',
-    subject: 'Devotional',
-    particular: 'Includes illustrations'
-  }
-];
+import { useAuth } from '../context/AuthContext';
 
 const LANG_MAP = {
   'G': 'Gujarati',
   'H': 'Hindi',
   'E': 'English'
 };
-
 
 const LANG_COLOR = { E: '#2563EB', G: '#FF8A00', H: '#00b6be' };
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
@@ -123,7 +61,7 @@ const SelectField = ({ icon: Icon, label, options, name, value, onChange }) => (
   </div>
 );
 
-const ActionBtn = ({ label, icon: Icon, color, onClick }) => {
+const ActionBtn = ({ label, icon: Icon, color, onClick, disabled }) => {
   const styles = {
     blue:   'bg-gradient-to-r from-[#1D4ED8] to-[#1565FF] shadow-[0_6px_18px_rgba(29,78,216,0.25)] hover:shadow-[0_10px_26px_rgba(29,78,216,0.35)]',
     teal:   'bg-gradient-to-r from-[#00b6be] to-[#0099a8] shadow-[0_6px_18px_rgba(0,182,190,0.25)] hover:shadow-[0_10px_26px_rgba(0,182,190,0.35)]',
@@ -132,9 +70,10 @@ const ActionBtn = ({ label, icon: Icon, color, onClick }) => {
   return (
     <motion.button
       onClick={onClick}
-      whileHover={{ y: -2, scale: 1.02 }}
-      whileTap={{ scale: 0.97 }}
-      className={`relative overflow-hidden flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-white text-[11px] font-black tracking-widest uppercase transition-all duration-300 cursor-pointer ${styles}`}
+      disabled={disabled}
+      whileHover={disabled ? {} : { y: -2, scale: 1.02 }}
+      whileTap={disabled ? {} : { scale: 0.97 }}
+      className={`relative overflow-hidden flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-white text-[11px] font-black tracking-widest uppercase transition-all duration-300 cursor-pointer ${styles} disabled:opacity-50 disabled:cursor-not-allowed`}
     >
       <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/20 to-transparent pointer-events-none" />
       <Icon size={14} strokeWidth={2.5} className="relative z-10" />
@@ -144,6 +83,7 @@ const ActionBtn = ({ label, icon: Icon, color, onClick }) => {
 };
 
 export default function AddBook() {
+  const { selectedBhandar } = useAuth();
   const [pageSize, setPageSize] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
   const [form, setForm] = useState({
@@ -160,8 +100,38 @@ export default function AddBook() {
     edition: '',
     publisher: '',
     subject: '',
-    note: ''
+    note: '',
+    MasterID: ''
   });
+
+  const [masterData, setMasterData] = useState([]);
+  const [totalMasterCount, setTotalMasterCount] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchMasterData = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`/front/master_data_list?search=${encodeURIComponent(searchQuery)}&limit=${pageSize}&page=${currentPage}`);
+        const json = await res.json();
+        if (json.status === 'success' && active) {
+          setMasterData(json.data);
+          setTotalMasterCount(json.total);
+        }
+      } catch (err) {
+        console.error("Failed to fetch master data:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchMasterData();
+    return () => {
+      active = false;
+    };
+  }, [searchQuery, pageSize, currentPage]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -183,7 +153,8 @@ export default function AddBook() {
       edition: '',
       publisher: '',
       subject: '',
-      note: ''
+      note: '',
+      MasterID: ''
     });
   };
 
@@ -195,25 +166,72 @@ export default function AddBook() {
       part: row.part || '',
       author: row.author || '',
       editor: row.editor || '',
-      lang: LANG_MAP[row.lang] || row.lang || '',
+      lang: row.lang || '',
       pages: row.page || '',
       yearType: row.yearType || '',
       year: row.year || '',
       edition: row.edition || '',
       publisher: row.publisher || '',
       subject: row.subject || '',
-      note: row.particular || ''
+      note: row.particular || '',
+      MasterID: row.id || ''
     });
   };
 
-  const handleAddBookSubmit = (e) => {
+  const handleAddBookSubmit = async (e) => {
     if (e) e.preventDefault();
-    console.log("Submitting form data to backend:", form);
-    alert(`Ready to submit metadata connection:\n${JSON.stringify(form, null, 2)}`);
+    if (!form.name || !form.size || !form.num || !form.lang) {
+      alert("Please fill out the required fields: Name, Size, Number, and Language!");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const payload = {
+        book_name: form.name,
+        alternate_name: form.alt || '',
+        part: form.part || '',
+        publisher: form.publisher || '',
+        author: form.author || '',
+        editor: form.editor || '',
+        language: form.lang,
+        page: form.pages || '',
+        year_type: form.yearType || '',
+        year: form.year || '',
+        edition: form.edition || '',
+        size: form.size,
+        subject: form.subject || '',
+        book_number: form.num,
+        note: form.note || '',
+        userId: 1,
+        bhandar_code: selectedBhandar,
+        MasterID: form.MasterID || ''
+      };
+
+      const res = await fetch('/api/front/add_book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (json.status === true) {
+        alert(json.message || "Successfully added book entry!");
+        handleClear();
+      } else {
+        alert(json.Error || "Failed to add book entry.");
+      }
+    } catch (err) {
+      console.error("Failed to add book:", err);
+      alert("Error occurred while submitting book!");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const totalPages = Math.ceil(MOCK_DATA.length / pageSize);
-  const paginatedData = MOCK_DATA.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(totalMasterCount / pageSize);
+  const paginatedData = masterData;
 
   return (
     <div className="w-full max-w-[1400px] px-4 sm:px-6 mx-auto pb-4 pt-14 sm:pt-16 overflow-y-auto">
@@ -276,77 +294,105 @@ export default function AddBook() {
         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-white/70 to-transparent pointer-events-none rounded-t-[24px]" />
 
         {/* Table header bar */}
-        <div className="relative z-10 flex items-center justify-between px-5 py-3.5 border-b border-neutral-100">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3.5 border-b border-neutral-100 gap-3">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1D4ED8] to-[#00b6be] flex items-center justify-center">
               <Database size={14} strokeWidth={2.5} className="text-white" />
             </div>
             <h2 className="text-[15px] font-heading font-bold text-[#0A2540]">Master Data</h2>
           </div>
-          <div className="flex items-center gap-2 text-[13px] text-neutral-500 font-medium">
-            <span>Show</span>
-            <select
-              value={pageSize}
-              onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-              className="border border-neutral-200 rounded-lg px-2 py-1 text-[13px] text-neutral-700 font-semibold outline-none focus:border-[#00b6be] transition-all bg-white"
-            >
-              {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-            <span>entries</span>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Live Search Input */}
+            <div className="relative w-full sm:w-[200px]">
+              <input 
+                type="text" 
+                placeholder="Search master books..." 
+                value={searchQuery}
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="w-full border border-neutral-200 focus:border-[#00b6be] transition-all rounded-lg pl-8 pr-2.5 py-1.5 text-[11.5px] text-neutral-800 outline-none bg-neutral-50/50 font-bold placeholder:text-neutral-300"
+              />
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                <Search size={12} strokeWidth={2.5} />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-[13px] text-neutral-500 font-medium">
+              <span>Show</span>
+              <select
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                className="border border-neutral-200 rounded-lg px-2 py-1 text-[13px] text-neutral-700 font-semibold outline-none focus:border-[#00b6be] transition-all bg-white"
+              >
+                {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span>entries</span>
+            </div>
           </div>
         </div>
 
         {/* Scrollable table */}
         <div className="relative z-10 overflow-x-auto">
-          <table className="w-full text-[12.5px]">
-            <thead>
-              <tr className="bg-gradient-to-r from-[#1D4ED8] to-[#00b6be] text-white">
-                {['Master ID','Size','Name','Alternate Name','Part','Kruti','Author','Editor','Language','Page','Year','Edition','Publisher','Subject','Particular'].map(h => (
-                  <th key={h} className="px-3 py-2.5 text-left font-bold whitespace-nowrap first:pl-5 last:pr-5">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedData.map((row, i) => (
-                <tr key={row.id} className={`border-b border-neutral-50 hover:bg-[#00b6be]/5 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/50'}`}>
-                  <td className="px-3 py-2.5 pl-5 font-bold whitespace-nowrap">
-                    <button 
-                      onClick={() => handleAutofill(row)}
-                      className="px-2.5 py-1 rounded-lg text-white text-[11px] font-black tracking-wide bg-[#0090CB] hover:bg-[#007eb3] active:scale-95 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
-                    >
-                      {row.id}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1D4ED8]/10 text-[#1D4ED8] text-[11px] font-bold">{row.size}</span>
-                  </td>
-                  <td className="px-3 py-2.5 font-semibold text-neutral-800 max-w-[140px] truncate">{row.name}</td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.alt}</td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.part}</td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.kruti}</td>
-                  <td className="px-3 py-2.5 text-neutral-700 max-w-[120px] truncate">{row.author}</td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.editor}</td>
-                  <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-extrabold" style={{ background: LANG_COLOR[row.lang] || '#888' }}>
-                      {row.lang}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.page}</td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.year}</td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.edition}</td>
-                  <td className="px-3 py-2.5 text-neutral-700 max-w-[130px] truncate">{row.publisher}</td>
-                  <td className="px-3 py-2.5 text-neutral-500">{row.subject}</td>
-                  <td className="px-3 py-2.5 pr-5 text-neutral-500">{row.particular}</td>
+          {loading ? (
+            <div className="w-full flex items-center justify-center py-20">
+              <div className="w-8 h-8 rounded-full border-4 border-t-[#00b6be] border-neutral-200 animate-spin" />
+            </div>
+          ) : (
+            <table className="w-full text-[12.5px]">
+              <thead>
+                <tr className="bg-gradient-to-r from-[#1D4ED8] to-[#00b6be] text-white">
+                  {['Master ID','Size','Name','Alternate Name','Part','Kruti','Author','Editor','Language','Page','Year','Edition','Publisher','Subject','Particular'].map(h => (
+                    <th key={h} className="px-3 py-2.5 text-left font-bold whitespace-nowrap first:pl-5 last:pr-5">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {paginatedData.map((row, i) => (
+                  <tr key={row.id} className={`border-b border-neutral-50 hover:bg-[#00b6be]/5 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/50'}`}>
+                    <td className="px-3 py-2.5 pl-5 font-bold whitespace-nowrap">
+                      <button 
+                        onClick={() => handleAutofill(row)}
+                        className="px-2.5 py-1 rounded-lg text-white text-[11px] font-black tracking-wide bg-[#0090CB] hover:bg-[#007eb3] active:scale-95 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                      >
+                        {row.id}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1D4ED8]/10 text-[#1D4ED8] text-[11px] font-bold">{row.size}</span>
+                    </td>
+                    <td className="px-3 py-2.5 font-semibold text-neutral-800 max-w-[140px] truncate">{row.name}</td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.alt}</td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.part}</td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.kruti}</td>
+                    <td className="px-3 py-2.5 text-neutral-700 max-w-[120px] truncate">{row.author}</td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.editor}</td>
+                    <td className="px-3 py-2.5">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[10px] font-extrabold" style={{ background: LANG_COLOR[row.lang] || '#888' }}>
+                        {row.lang}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.page}</td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.year}</td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.edition}</td>
+                    <td className="px-3 py-2.5 text-neutral-700 max-w-[130px] truncate">{row.publisher}</td>
+                    <td className="px-3 py-2.5 text-neutral-500">{row.subject}</td>
+                    <td className="px-3 py-2.5 pr-5 text-neutral-500">{row.particular}</td>
+                  </tr>
+                ))}
+                {!loading && paginatedData.length === 0 && (
+                  <tr>
+                    <td colSpan={15} className="text-center py-10 font-bold text-neutral-400">No master data matches search query</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Pagination */}
         <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between px-5 py-3.5 border-t border-neutral-100 gap-3">
           <p className="text-[12.5px] text-neutral-500 font-medium">
-            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, MOCK_DATA.length)} of {MOCK_DATA.length} entries
+            Showing {totalMasterCount === 0 ? 0 : (currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, totalMasterCount)} of {totalMasterCount} entries
           </p>
           <div className="flex items-center gap-1.5">
             <PagBtn icon={ChevronsLeft}  onClick={() => setCurrentPage(1)}            disabled={currentPage === 1} />
