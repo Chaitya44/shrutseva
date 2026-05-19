@@ -150,9 +150,7 @@ class QuickAdvanceHindiSearchController extends BaseController
             if (isset($langMap[$langVal])) {
                 $langVal = $langMap[$langVal];
             }
-            if ($langVal !== 'H') {
-                $queryList->where('master.language', 'like', $langVal . '%');
-            }
+            $queryList->where('master.language', 'like', $langVal . '%');
         }
 
         if (!empty($request->subject)) {
@@ -356,15 +354,13 @@ class QuickAdvanceHindiSearchController extends BaseController
             if (isset($langMap[$langVal])) {
                 $langVal = $langMap[$langVal];
             }
-            if ($langVal !== 'H') {
-                if ($includeRelevant) {
-                    $search = $this->normalizeSearchTerm($langVal);
-                    $queryCount->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
-                    $queryList->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
-                } else {
-                    $queryCount->where('master.language', 'like', $langVal . "%");
-                    $queryList->where('master.language', 'like', $langVal . "%");
-                }
+            if ($includeRelevant) {
+                $search = $this->normalizeSearchTerm($langVal);
+                $queryCount->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
+                $queryList->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
+            } else {
+                $queryCount->where('master.language', 'like', $langVal . "%");
+                $queryList->where('master.language', 'like', $langVal . "%");
             }
         }
 
