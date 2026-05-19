@@ -29,9 +29,7 @@ export default function AdvanceSearch() {
   const [activeLangDropdown, setActiveLangDropdown] = useState('All');
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   
-  const targetTransLang = (activeLangDropdown === 'Hindi' || activeLangDropdown === 'Sanskrit' || activeLangDropdown === 'Prakrit')
-    ? 'Hindi'
-    : (activeLangDropdown === 'Gujarati' ? 'Gujarati' : activeLang);
+  const targetTransLang = activeLang;
 
   // Results and Loaders
   const [books, setBooks] = useState([]);
@@ -77,7 +75,7 @@ export default function AdvanceSearch() {
         perticular: particular.trim()
       });
 
-      const isHindi = langParam === 'Hindi' || langParam === 'Sanskrit' || langParam === 'Prakrit';
+      const isHindi = activeLang === 'Hindi';
       const endpoint = isHindi ? '/front/quick_advance_hindi_book_search' : '/front/quick_advance_book_search';
 
       const response = await fetch(`${endpoint}?${queryParams.toString()}`);
@@ -211,7 +209,7 @@ export default function AdvanceSearch() {
           <div className="relative inline-flex items-center p-1 bg-white/80 backdrop-blur-xl rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.06)] border border-white overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/90 to-transparent pointer-events-none rounded-t-full" />
             <button
-              onClick={() => { setActiveLang('Gujarati'); setActiveLangDropdown('Gujarati'); }}
+              onClick={() => setActiveLang('Gujarati')}
               className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 ${
                 activeLang === 'Gujarati'
                   ? 'bg-[#00b6be] text-white shadow-[0_4px_16px_rgba(0,182,190,0.4)]'
@@ -222,7 +220,7 @@ export default function AdvanceSearch() {
               Gujarati
             </button>
             <button
-              onClick={() => { setActiveLang('Hindi'); setActiveLangDropdown('Hindi'); }}
+              onClick={() => setActiveLang('Hindi')}
               className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 ${
                 activeLang === 'Hindi'
                   ? 'bg-[#00b6be] text-white shadow-[0_4px_16px_rgba(0,182,190,0.4)]'
@@ -393,11 +391,6 @@ export default function AdvanceSearch() {
                       onClick={() => {
                         setActiveLangDropdown(lang);
                         setShowLangDropdown(false);
-                        if (lang === 'Hindi' || lang === 'Sanskrit' || lang === 'Prakrit') {
-                          setActiveLang('Hindi');
-                        } else if (lang === 'Gujarati') {
-                          setActiveLang('Gujarati');
-                        }
                       }}
                       className={`w-full text-left px-4 py-2 text-[13px] font-bold cursor-pointer transition-colors ${
                         activeLangDropdown === lang ? 'bg-[#00ACC1]/10 text-[#00ACC1]' : 'text-neutral-800 hover:bg-neutral-50'
