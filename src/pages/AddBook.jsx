@@ -234,10 +234,10 @@ export default function AddBook() {
   const paginatedData = masterData;
 
   return (
-    <div className="w-full max-w-[1400px] px-4 sm:px-6 mx-auto pb-4 pt-14 sm:pt-16 overflow-y-auto">
+    <div className="w-full max-w-[1400px] px-4 sm:px-6 mx-auto pb-4 pt-14 sm:pt-16">
 
       {/* ── Page Title ─────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
+      <div className="relative z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
         <h1 className="text-[28px] sm:text-[34px] font-heading font-extrabold tracking-tight mb-1">
           <span className="text-[#012c77]">Add</span>{' '}
           <span className="text-[#FF6B00]">Book Entry</span>

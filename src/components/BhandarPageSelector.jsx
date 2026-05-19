@@ -23,7 +23,7 @@ export default function BhandarPageSelector() {
   if (!isLoggedIn) return null;
 
   const filtered = bhandarList.filter(b =>
-    b.label.toLowerCase().includes(search.toLowerCase())
+    b && b.label && b.label.toLowerCase().includes(search.toLowerCase())
   );
 
   const displayLabel = selectedBhandar || 'Select Bhandar';

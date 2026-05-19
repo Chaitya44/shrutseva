@@ -109,14 +109,14 @@ export default function Dashboard() {
   const maxBooksLang = filteredLangs.length > 0 ? Math.max(...filteredLangs.map(d => d.value)) : 1;
 
   return (
-    <div className="w-full max-w-[1400px] px-4 sm:px-6 mx-auto pb-8 pt-14 sm:pt-16 overflow-y-auto relative">
+    <div className="w-full max-w-[1400px] px-4 sm:px-6 mx-auto pb-8 pt-14 sm:pt-16 relative">
 
       {/* Background Neon glowing spots for elite dashboard feel */}
       <div className="absolute top-[10%] left-[20%] w-[300px] h-[300px] rounded-full bg-[#1565FF]/10 blur-[80px] pointer-events-none z-0" />
       <div className="absolute bottom-[20%] right-[10%] w-[350px] h-[350px] rounded-full bg-[#00b6be]/10 blur-[100px] pointer-events-none z-0" />
 
       {/* ── Page Header ─────────────────────────────────────────── */}
-      <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div className="relative z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           <div className="flex flex-col">
             <h1 className="text-[28px] sm:text-[34px] font-heading font-extrabold tracking-tight leading-none mb-1">
