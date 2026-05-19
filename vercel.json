@@ -2,15 +2,15 @@
   "rewrites": [
     {
       "source": "/front/:path*",
-      "destination": "http://147.93.155.190/test/front/:path*"
+      "destination": "https://147.93.155.190/front/:path*"
     },
     {
       "source": "/api/:path*",
-      "destination": "http://147.93.155.190/test/api/:path*"
+      "destination": "https://147.93.155.190/api/:path*"
     },
     {
       "source": "/get_bhandars_list",
-      "destination": "http://147.93.155.190/test/get_bhandars_list"
+      "destination": "https://147.93.155.190/get_bhandars_list"
     },
     {
       "source": "/(.*)",

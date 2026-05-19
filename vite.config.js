@@ -8,16 +8,19 @@ export default defineConfig({
   server: {
     proxy: {
       '/front': {
-        target: 'http://147.93.155.190/test',
+        target: 'https://147.93.155.190/test',
         changeOrigin: true,
+        secure: false,
       },
       '/api': {
-        target: 'http://147.93.155.190/test',
+        target: 'https://147.93.155.190/test',
         changeOrigin: true,
+        secure: false,
       },
       '/get_bhandars_list': {
-        target: 'http://147.93.155.190/test',
+        target: 'https://147.93.155.190/test',
         changeOrigin: true,
+        secure: false,
       }
     }
   }

@@ -125,6 +125,7 @@ export default function Dashboard() {
             <span className="text-[11px] font-bold text-neutral-400 tracking-wide uppercase">Institutional Library Analytics Console</span>
           </div>
         </div>
+        <BhandarPageSelector />
       </div>
 
       {/* ── Stats Row ──────────────────────────────────────────── */}
