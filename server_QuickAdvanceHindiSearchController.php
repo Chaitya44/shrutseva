@@ -139,7 +139,18 @@ class QuickAdvanceHindiSearchController extends BaseController
         }
 
         if (!empty($request->lang_name)) {
-            $queryList->where('master.language', 'like', $request->lang_name . '%');
+            $langMap = [
+                'Gujarati' => 'G',
+                'Hindi' => 'H',
+                'English' => 'E',
+                'Sanskrit' => 'S',
+                'Prakrit' => 'P'
+            ];
+            $langVal = $request->lang_name;
+            if (isset($langMap[$langVal])) {
+                $langVal = $langMap[$langVal];
+            }
+            $queryList->where('master.language', 'like', $langVal . '%');
         }
 
         if (!empty($request->subject)) {
@@ -332,13 +343,24 @@ class QuickAdvanceHindiSearchController extends BaseController
         }
 
         if (!empty($request->lang_name)) {
+            $langMap = [
+                'Gujarati' => 'G',
+                'Hindi' => 'H',
+                'English' => 'E',
+                'Sanskrit' => 'S',
+                'Prakrit' => 'P'
+            ];
+            $langVal = $request->lang_name;
+            if (isset($langMap[$langVal])) {
+                $langVal = $langMap[$langVal];
+            }
             if ($includeRelevant) {
-                $search = $this->normalizeSearchTerm($request->lang_name);
-                $queryCount->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$request->lang_name . "%", $request->lang_name . "%", $search . "%"]);
-                $queryList->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$request->lang_name . "%", $request->lang_name . "%", $search . "%"]);
+                $search = $this->normalizeSearchTerm($langVal);
+                $queryCount->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
+                $queryList->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
             } else {
-                $queryCount->where('master.language', 'like', $request->lang_name . "%");
-                $queryList->where('master.language', 'like', $request->lang_name . "%");
+                $queryCount->where('master.language', 'like', $langVal . "%");
+                $queryList->where('master.language', 'like', $langVal . "%");
             }
         }
 
