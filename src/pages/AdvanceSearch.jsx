@@ -77,7 +77,10 @@ export default function AdvanceSearch() {
         perticular: particular.trim()
       });
 
-      const response = await fetch(`/front/quick_advance_book_search?${queryParams.toString()}`);
+      const isHindi = langParam === 'Hindi' || langParam === 'Sanskrit' || langParam === 'Prakrit';
+      const endpoint = isHindi ? '/front/quick_advance_hindi_book_search' : '/front/quick_advance_book_search';
+
+      const response = await fetch(`${endpoint}?${queryParams.toString()}`);
       const json = await response.json();
       
       if (json && json.data) {

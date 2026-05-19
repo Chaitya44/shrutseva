@@ -6,6 +6,19 @@ import { decryptAES128 } from '../utils/crypto';
 import { transliterateIndicToEnglish, hasIndicCharacters } from '../utils/transliteration';
 
 
+const mapLanguageInitialToFull = (initial) => {
+  const mapping = {
+    'G': 'Gujarati',
+    'H': 'Hindi',
+    'E': 'English',
+    'S': 'Sanskrit',
+    'P': 'Prakrit'
+  };
+  if (!initial) return '-';
+  const clean = initial.trim().toUpperCase();
+  return mapping[clean] || initial;
+};
+
 export default function BookTable({ books }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [detailsCache, setDetailsCache] = useState({});
@@ -66,7 +79,11 @@ export default function BookTable({ books }) {
     if (!isCurrentlyExpanded && !detailsCache[id]) {
       setLoadingIds(prev => ({ ...prev, [id]: true }));
       try {
-        const response = await fetch(`/front/get_book_details?master_ssid=${masterSsid}`);
+        const bookObj = books.find(b => b.id === id);
+        const bookLang = bookObj?.language;
+        const isHindiContext = bookLang === 'H' || bookLang === 'S' || bookLang === 'P' || bookLang === 'Hindi' || bookLang === 'Sanskrit' || bookLang === 'Prakrit';
+        const endpoint = isHindiContext ? '/front/quick_hindi_book_details' : '/front/get_book_details';
+        const response = await fetch(`${endpoint}?master_ssid=${masterSsid}`);
         const result = await response.json();
         
         if (result && result.data) {
@@ -188,8 +205,8 @@ export default function BookTable({ books }) {
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.editor || '-'}</td>
                     <td className="px-5 py-4 text-center">
                       {book.language ? (
-                        <span className="inline-flex items-center justify-center w-6 h-6 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[11px]">
-                          {book.language}
+                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[11px]">
+                          {mapLanguageInitialToFull(book.language)}
                         </span>
                       ) : (
                         '-'
@@ -245,7 +262,7 @@ export default function BookTable({ books }) {
                   <div className="flex items-center gap-2 mb-1">
                     {book.language ? (
                       <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[10px] uppercase tracking-wider">
-                        {book.language}
+                        {mapLanguageInitialToFull(book.language)}
                       </span>
                     ) : null}
                     {book.part ? (

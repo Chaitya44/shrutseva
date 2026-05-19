@@ -150,7 +150,9 @@ class QuickAdvanceSearchController extends BaseController
             if (isset($langMap[$langVal])) {
                 $langVal = $langMap[$langVal];
             }
-            $queryList->where('master.language', 'like', $langVal . '%');
+            if ($langVal !== 'H') {
+                $queryList->where('master.language', 'like', $langVal . '%');
+            }
         }
 
         if (!empty($request->subject)) {
@@ -193,24 +195,40 @@ class QuickAdvanceSearchController extends BaseController
             $queryList->limit((int) $length)->offset((int) $start);
         }
 
+        $langVal = $request->lang_name;
+        $isHindi = false;
+        if (!empty($langVal)) {
+            $langMap = [
+                'Gujarati' => 'G',
+                'Hindi' => 'H',
+                'English' => 'E',
+                'Sanskrit' => 'S',
+                'Prakrit' => 'P'
+            ];
+            if (isset($langMap[$langVal])) {
+                $langVal = $langMap[$langVal];
+            }
+            $isHindi = ($langVal === 'H');
+        }
+
         $books = $queryList->select([
             'master.SSID as master_ssid',
             'master.MasterID',
-            'master.book_name',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.book_name_hindi), ""), master.book_name) as book_name') : 'master.book_name',
             'master.part',
-            'master.alternate_name',
-            'master.Kruti',
-            'master.author',
-            'master.editor',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.alternate_name_hindi), ""), master.alternate_name) as alternate_name') : 'master.alternate_name',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.Kruti_hindi), ""), master.Kruti) as Kruti') : 'master.Kruti',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.author_hindi), ""), master.author) as author') : 'master.author',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.editor_hindi), ""), master.editor) as editor') : 'master.editor',
             'master.language as lang_name',
-            'master.publisher',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.publisher_hindi), ""), master.publisher) as publisher') : 'master.publisher',
             'master.page',
             'master.year_type',
             'master.year',
             'master.edition',
-            'master.subject',
-            'master.note as book_note',
-            'master.perticular',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.subject_hindi), ""), master.subject) as subject') : 'master.subject',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.note_hindi), ""), master.note) as book_note') : 'master.note as book_note',
+            $isHindi ? DB::raw('COALESCE(NULLIF(TRIM(master.perticular_hindi), ""), master.perticular) as perticular') : 'master.perticular',
             'master.cover',
         ])->get();
 
@@ -353,13 +371,15 @@ class QuickAdvanceSearchController extends BaseController
             if (isset($langMap[$langVal])) {
                 $langVal = $langMap[$langVal];
             }
-            if ($includeRelevant) {
-                $search = $this->normalizeSearchTerm($langVal);
-                $queryCount->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
-                $queryList->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
-            } else {
-                $queryCount->where('master.language', 'like', $langVal . "%");
-                $queryList->where('master.language', 'like', $langVal . "%");
+            if ($langVal !== 'H') {
+                if ($includeRelevant) {
+                    $search = $this->normalizeSearchTerm($langVal);
+                    $queryCount->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
+                    $queryList->whereRaw("(master.language LIKE ? OR master.language regexp ? OR master.language regexp ?)", [$langVal . "%", $langVal . "%", $search . "%"]);
+                } else {
+                    $queryCount->where('master.language', 'like', $langVal . "%");
+                    $queryList->where('master.language', 'like', $langVal . "%");
+                }
             }
         }
 
@@ -418,6 +438,22 @@ class QuickAdvanceSearchController extends BaseController
             );
         }
 
+        $langVal = $request->lang_name;
+        $isHindi = false;
+        if (!empty($langVal)) {
+            $langMap = [
+                'Gujarati' => 'G',
+                'Hindi' => 'H',
+                'English' => 'E',
+                'Sanskrit' => 'S',
+                'Prakrit' => 'P'
+            ];
+            if (isset($langMap[$langVal])) {
+                $langVal = $langMap[$langVal];
+            }
+            $isHindi = ($langVal === 'H');
+        }
+
         $books = $queryList->select([
             'book.MasterID',
             DB::raw('MAX(book.MasterDataSSID) as master_ssid'),
@@ -428,27 +464,45 @@ class QuickAdvanceSearchController extends BaseController
             DB::raw('GROUP_CONCAT(IFNULL(bhandar.mobile, "") ORDER BY book.size, book.no SEPARATOR ",") as mobile'),
             DB::raw('GROUP_CONCAT(IFNULL(book.issued, "") ORDER BY book.size, book.no SEPARATOR ",") as issued'),
             DB::raw('MAX(book.SSID) as SSID'),
-            DB::raw('COALESCE(ANY_VALUE(master.book_name),ANY_VALUE(book.book_name)) as book_name'),
+            $isHindi 
+                ? DB::raw('COALESCE(ANY_VALUE(NULLIF(TRIM(master.book_name_hindi), "")), ANY_VALUE(master.book_name), ANY_VALUE(book.book_name)) as book_name')
+                : DB::raw('COALESCE(ANY_VALUE(master.book_name), ANY_VALUE(book.book_name)) as book_name'),
             DB::raw('COALESCE(ANY_VALUE(master.size), ANY_VALUE(book.size)) as size'),
             DB::raw('COALESCE(ANY_VALUE(master.part), ANY_VALUE(book.part)) as part'),
-            DB::raw('COALESCE(ANY_VALUE(master.author), ANY_VALUE(book.author)) as author'),
-            DB::raw('COALESCE(ANY_VALUE(master.editor), ANY_VALUE(book.editor)) as editor'),
-            DB::raw('COALESCE(ANY_VALUE(master.publisher), ANY_VALUE(book.publisher)) as publisher'),
+            $isHindi
+                ? DB::raw('COALESCE(ANY_VALUE(NULLIF(TRIM(master.author_hindi), "")), ANY_VALUE(master.author), ANY_VALUE(book.author)) as author')
+                : DB::raw('COALESCE(ANY_VALUE(master.author), ANY_VALUE(book.author)) as author'),
+            $isHindi
+                ? DB::raw('COALESCE(ANY_VALUE(NULLIF(TRIM(master.editor_hindi), "")), ANY_VALUE(master.editor), ANY_VALUE(book.editor)) as editor')
+                : DB::raw('COALESCE(ANY_VALUE(master.editor), ANY_VALUE(book.editor)) as editor'),
+            $isHindi
+                ? DB::raw('COALESCE(ANY_VALUE(NULLIF(TRIM(master.publisher_hindi), "")), ANY_VALUE(master.publisher), ANY_VALUE(book.publisher)) as publisher')
+                : DB::raw('COALESCE(ANY_VALUE(master.publisher), ANY_VALUE(book.publisher)) as publisher'),
             DB::raw('COALESCE(ANY_VALUE(master.language), ANY_VALUE(book.language)) as lang_name'),
             DB::raw('ANY_VALUE(bhandar.contact) as contact'),
             DB::raw('ANY_VALUE(master.page) as page'),
             DB::raw('ANY_VALUE(master.edition) as edition'),
             DB::raw('ANY_VALUE(master.year) as year'),
             DB::raw('ANY_VALUE(master.year_type) as year_type'),
-            DB::raw('ANY_VALUE(master.Kruti) as Kruti'),
-            DB::raw('ANY_VALUE(master.subject) as subject'),
+            $isHindi
+                ? DB::raw('ANY_VALUE(COALESCE(NULLIF(TRIM(master.Kruti_hindi), ""), master.Kruti)) as Kruti')
+                : DB::raw('ANY_VALUE(master.Kruti) as Kruti'),
+            $isHindi
+                ? DB::raw('ANY_VALUE(COALESCE(NULLIF(TRIM(master.subject_hindi), ""), master.subject)) as subject')
+                : DB::raw('ANY_VALUE(master.subject) as subject'),
             DB::raw('ANY_VALUE(book.issued_to_notes) as issued_to_notes'),
             DB::raw('ANY_VALUE(book.issued_to_name) as issued_to_name'),
             DB::raw('ANY_VALUE(book.issued_date) as issued_date'),
             DB::raw('MAX(book.no) as no'),
-            DB::raw('ANY_VALUE(master.alternate_name) as alternate_name'),
-            DB::raw('ANY_VALUE(master.note) as book_note'),
-            DB::raw('ANY_VALUE(master.perticular) as perticular'),
+            $isHindi
+                ? DB::raw('ANY_VALUE(COALESCE(NULLIF(TRIM(master.alternate_name_hindi), ""), master.alternate_name)) as alternate_name')
+                : DB::raw('ANY_VALUE(master.alternate_name) as alternate_name'),
+            $isHindi
+                ? DB::raw('ANY_VALUE(COALESCE(NULLIF(TRIM(master.note_hindi), ""), master.note)) as book_note')
+                : DB::raw('ANY_VALUE(master.note) as book_note'),
+            $isHindi
+                ? DB::raw('ANY_VALUE(COALESCE(NULLIF(TRIM(master.perticular_hindi), ""), master.perticular)) as perticular')
+                : DB::raw('ANY_VALUE(master.perticular) as perticular'),
             DB::raw('ANY_VALUE(master.cover) as cover'),
         ])->get();
 

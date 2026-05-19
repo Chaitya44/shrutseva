@@ -31,6 +31,19 @@ const DetailCard = ({ icon: Icon, label, value }) => (
   </div>
 );
 
+const mapLanguageInitialToFull = (initial) => {
+  const mapping = {
+    'G': 'Gujarati',
+    'H': 'Hindi',
+    'E': 'English',
+    'S': 'Sanskrit',
+    'P': 'Prakrit'
+  };
+  if (!initial) return '-';
+  const clean = initial.trim().toUpperCase();
+  return mapping[clean] || initial;
+};
+
 export default function ExpandedBookDetails({ book }) {
   const details = [
     { icon: BookOpen, label: 'Name', value: book?.name },
@@ -39,7 +52,7 @@ export default function ExpandedBookDetails({ book }) {
     { icon: PenTool, label: 'Kruti', value: book?.kruti },
     { icon: User, label: 'Author', value: book?.author },
     { icon: Edit3, label: 'Editor', value: book?.editor },
-    { icon: Globe, label: 'Language', value: book?.languageFull },
+    { icon: Globe, label: 'Language', value: mapLanguageInitialToFull(book?.languageFull) },
     { icon: Building2, label: 'Publisher', value: book?.publisher },
     { icon: FileText, label: 'Page', value: book?.page },
     { icon: Calendar, label: 'Year', value: book?.year },
