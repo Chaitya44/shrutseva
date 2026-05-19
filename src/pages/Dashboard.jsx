@@ -338,9 +338,9 @@ export default function Dashboard() {
 
           {/* SVG Custom High-End Scrollable Bar Chart */}
           <div className="relative z-10 flex-1 overflow-x-auto overflow-y-hidden pb-2 scrollbar-thin">
-            <div className="flex items-end justify-between gap-1.5 px-2 pb-6 pt-6 h-full min-w-[500px]">
+            <div className="flex items-end justify-between gap-1.5 px-2 pb-8 pt-6 h-full min-w-[680px]">
               {filteredLangs.map((d, index) => {
-                const heightPercent = `${(d.value / maxBooksLang) * 75}%`;
+                const heightPercent = `${(d.value / maxBooksLang) * 72}%`;
                 const isHovered = hoveredLangBar === index;
                 const isAnyHovered = hoveredLangBar !== null;
                 return (
@@ -364,7 +364,7 @@ export default function Dashboard() {
                     </div>
 
                     {/* X-Axis Label */}
-                    <span className={`text-[10px] font-extrabold mt-2 whitespace-nowrap leading-none transition-colors duration-200 ${isHovered ? 'text-[#00b6be]' : 'text-[#0A2540]'}`}>{d.label}</span>
+                    <span className={`text-[10px] font-extrabold mt-3.5 whitespace-nowrap leading-none transition-all duration-200 rotate-[25deg] sm:rotate-0 origin-left translate-x-1 sm:translate-x-0 ${isHovered ? 'text-[#00b6be]' : 'text-[#0A2540]'}`}>{d.label}</span>
                   </div>
                 );
               })}

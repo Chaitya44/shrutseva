@@ -253,9 +253,14 @@ export default function Navbar() {
             {isLoggedIn ? (
               <button
                 onClick={() => { handleLogout(); setMobileOpen(false); }}
-                className="flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-[#1D4ED8] to-[#2563EB] text-white text-[15px] font-bold shadow-[0_4px_12px_rgba(29,78,216,0.25)]"
+                className="relative overflow-hidden flex items-center justify-center gap-2 px-4 py-3 rounded-full text-white text-[15px] font-bold
+                  bg-gradient-to-r from-[#E8380D] to-[#FF6B00]
+                  shadow-[0_4px_12px_rgba(232,56,13,0.25)] hover:shadow-[0_6px_16px_rgba(232,56,13,0.35)]
+                  transition-all duration-300 border border-white/40 cursor-pointer"
               >
-                <LogOut size={16} /> Logout
+                <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent pointer-events-none rounded-t-full" />
+                <LogOut size={16} className="relative z-10" /> 
+                <span className="relative z-10">Logout</span>
               </button>
             ) : (
               <button
