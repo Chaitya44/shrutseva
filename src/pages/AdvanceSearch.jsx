@@ -20,11 +20,6 @@ export default function AdvanceSearch() {
   const [focusedField, setFocusedField] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
 
-  const targetTransLang = (activeLangDropdown === 'Hindi' || activeLangDropdown === 'Sanskrit' || activeLangDropdown === 'Prakrit')
-    ? 'Hindi'
-    : (activeLangDropdown === 'Gujarati' ? 'Gujarati' : activeLang);
-
-
   
   // Dropdown States
   const [cities, setCities] = useState([]);
@@ -34,6 +29,10 @@ export default function AdvanceSearch() {
   const [activeLangDropdown, setActiveLangDropdown] = useState('All');
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   
+  const targetTransLang = (activeLangDropdown === 'Hindi' || activeLangDropdown === 'Sanskrit' || activeLangDropdown === 'Prakrit')
+    ? 'Hindi'
+    : (activeLangDropdown === 'Gujarati' ? 'Gujarati' : activeLang);
+
   // Results and Loaders
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
