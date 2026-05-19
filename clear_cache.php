@@ -32,5 +32,12 @@ if (function_exists('opcache_reset')) {
     echo "OPCache extension is not loaded.\n";
 }
 
+echo "\n--- Git Status & Pull ---\n";
+echo "Current directory: " . getcwd() . "\n";
+echo "Git log:\n" . shell_exec('git log -1 --oneline 2>&1') . "\n";
+echo "Git status:\n" . shell_exec('git status 2>&1') . "\n";
+echo "Running git pull:\n" . shell_exec('git pull 2>&1') . "\n";
+echo "Git log after pull:\n" . shell_exec('git log -1 --oneline 2>&1') . "\n";
+
 echo "Done!\n";
 
