@@ -161,7 +161,7 @@ export default function QuickSearch() {
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="relative mb-8"
       >
-        <div className="relative overflow-hidden flex flex-col sm:flex-row items-stretch sm:items-center bg-white/90 backdrop-blur-2xl rounded-[24px] sm:rounded-full p-1 sm:p-1.5 shadow-[0_16px_40px_rgba(20,184,166,0.18)] border border-white">
+        <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center bg-white/90 backdrop-blur-2xl rounded-[24px] sm:rounded-full p-1 sm:p-1.5 shadow-[0_16px_40px_rgba(20,184,166,0.18)] border border-white">
           {/* Glossy top glass reflection overlay */}
           <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/80 to-transparent pointer-events-none sm:rounded-t-full rounded-t-[24px]" />
           
