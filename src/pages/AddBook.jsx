@@ -10,7 +10,71 @@ import BhandarPageSelector from '../components/BhandarPageSelector';
 
 
 // ── Master data (will be populated from API) ─────────────────────────────────
-const MOCK_DATA = [];
+const MOCK_DATA = [
+  {
+    id: 'M001',
+    size: 'A',
+    num: 'B-1024',
+    name: 'Kalpa Sutra',
+    alt: 'Bhadrabahu Samhita',
+    part: 'Vol 1',
+    kruti: 'Scripture Copy',
+    author: 'Acharya Bhadrabahu',
+    editor: 'Muni Ramprasad',
+    lang: 'G',
+    page: '120',
+    yearType: 'VS',
+    year: '2020',
+    edition: '2nd',
+    publisher: 'Tyag Trust Press',
+    subject: 'Scriptures',
+    particular: 'Old Manuscript Copy'
+  },
+  {
+    id: 'M002',
+    size: 'B',
+    num: 'B-2056',
+    name: 'Tattvartha Sutra',
+    alt: 'Jain Philosophy',
+    part: 'Vol 2',
+    kruti: 'Commentary Work',
+    author: 'Acharya Umaswati',
+    editor: 'Pandit Nathuram',
+    lang: 'H',
+    page: '240',
+    yearType: 'AD',
+    year: '2018',
+    edition: '3rd',
+    publisher: 'Jain Gyan Bhandar',
+    subject: 'Philosophy',
+    particular: 'Golden Lettering'
+  },
+  {
+    id: 'M003',
+    size: 'C',
+    num: 'B-3091',
+    name: 'Bhaktamara Stotra',
+    alt: 'Devotional Hymns',
+    part: 'Vol 1',
+    kruti: 'Hymn Collection',
+    author: 'Acharya Manatunga',
+    editor: 'Shastri Jaydev',
+    lang: 'E',
+    page: '80',
+    yearType: 'VS',
+    year: '2022',
+    edition: '1st',
+    publisher: 'Divya Press',
+    subject: 'Devotional',
+    particular: 'Includes illustrations'
+  }
+];
+
+const LANG_MAP = {
+  'G': 'Gujarati',
+  'H': 'Hindi',
+  'E': 'English'
+};
 
 
 const LANG_COLOR = { E: '#2563EB', G: '#FF8A00', H: '#00b6be' };
@@ -123,6 +187,25 @@ export default function AddBook() {
     });
   };
 
+  const handleAutofill = (row) => {
+    setForm({
+      size: row.size || '',
+      num: row.num || '',
+      name: row.name || '',
+      part: row.part || '',
+      author: row.author || '',
+      editor: row.editor || '',
+      lang: LANG_MAP[row.lang] || row.lang || '',
+      pages: row.page || '',
+      yearType: row.yearType || '',
+      year: row.year || '',
+      edition: row.edition || '',
+      publisher: row.publisher || '',
+      subject: row.subject || '',
+      note: row.particular || ''
+    });
+  };
+
   const handleAddBookSubmit = (e) => {
     if (e) e.preventDefault();
     console.log("Submitting form data to backend:", form);
@@ -226,7 +309,14 @@ export default function AddBook() {
             <tbody>
               {paginatedData.map((row, i) => (
                 <tr key={row.id} className={`border-b border-neutral-50 hover:bg-[#00b6be]/5 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-neutral-50/50'}`}>
-                  <td className="px-3 py-2.5 pl-5 font-bold text-[#FF6B00] whitespace-nowrap">{row.id}</td>
+                  <td className="px-3 py-2.5 pl-5 font-bold whitespace-nowrap">
+                    <button 
+                      onClick={() => handleAutofill(row)}
+                      className="px-2.5 py-1 rounded-lg text-white text-[11px] font-black tracking-wide bg-[#0090CB] hover:bg-[#007eb3] active:scale-95 transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
+                    >
+                      {row.id}
+                    </button>
+                  </td>
                   <td className="px-3 py-2.5">
                     <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1D4ED8]/10 text-[#1D4ED8] text-[11px] font-bold">{row.size}</span>
                   </td>
