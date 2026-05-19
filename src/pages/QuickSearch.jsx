@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, MapPin, ChevronDown, Languages, Sparkles, Loader2 } from 'lucide-react';
 import BookTable from '../components/BookTable';
+import { fetchGoogleTransliteration } from '../utils/transliteration';
+
 
 export default function QuickSearch() {
   const [activeLang, setActiveLang] = useState('Gujarati');
   const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
   const [books, setBooks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState([]);
@@ -79,6 +82,27 @@ export default function QuickSearch() {
       clearTimeout(delayDebounce);
     };
   }, [searchQuery, activeLang, activeCity]);
+
+  // Live Google Indic Transliteration suggestion fetching
+  useEffect(() => {
+    if (!searchQuery.trim() || activeLang === 'English') {
+      setSuggestions([]);
+      return;
+    }
+
+    const hasEnglish = /[a-zA-Z]/.test(searchQuery);
+    if (!hasEnglish) {
+      setSuggestions([]);
+      return;
+    }
+
+    const delayTimer = setTimeout(async () => {
+      const candidates = await fetchGoogleTransliteration(searchQuery, activeLang);
+      setSuggestions(candidates);
+    }, 250);
+
+    return () => clearTimeout(delayTimer);
+  }, [searchQuery, activeLang]);
 
   // Click Outside to Close dropdown
   useEffect(() => {
@@ -208,6 +232,35 @@ export default function QuickSearch() {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Google Input Tools Suggestions */}
+        <AnimatePresence>
+          {suggestions.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-3 flex flex-wrap gap-2 items-center px-4 py-2 bg-neutral-50/50 rounded-2xl border border-neutral-100"
+            >
+              <span className="text-[12px] font-bold text-neutral-400 mr-1 flex items-center gap-1 shrink-0">
+                <Sparkles size={12} className="text-[#FF6B00] animate-pulse" />
+                Did you mean ({activeLang === 'Hindi' ? 'Hindi' : 'Gujarati'}):
+              </span>
+              {suggestions.map((cand, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setSearchQuery(cand);
+                    setSuggestions([]);
+                  }}
+                  className="px-3.5 py-1.5 rounded-full bg-white hover:bg-[#FF6B00] hover:text-white text-[#0A2540] text-[13px] font-extrabold shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(255,107,0,0.3)] transition-all duration-200 cursor-pointer border border-neutral-200/50"
+                >
+                  {cand}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* Results Section */}

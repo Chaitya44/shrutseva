@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Languages, MapPin, ChevronDown, RotateCcw, Printer, Search, BookOpen, User, Edit3, Building2, Tag, Info, Loader2 } from 'lucide-react';
 import BookTable from '../components/BookTable';
+import { fetchGoogleTransliteration } from '../utils/transliteration';
+
 
 export default function AdvanceSearch() {
   const [activeLang, setActiveLang] = useState('Gujarati'); // Primary language context
@@ -13,6 +15,11 @@ export default function AdvanceSearch() {
   const [publisher, setPublisher] = useState('');
   const [subject, setSubject] = useState('');
   const [particular, setParticular] = useState('');
+  
+  // Transliteration suggestion states
+  const [focusedField, setFocusedField] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+
   
   // Dropdown States
   const [cities, setCities] = useState([]);
@@ -102,6 +109,40 @@ export default function AdvanceSearch() {
 
     return () => clearTimeout(debounceTimer);
   }, [title, author, editor, publisher, subject, particular, activeCity, activeLangDropdown]);
+
+  // Live Google Indic Transliteration suggestion fetching for Advance Search fields
+  useEffect(() => {
+    if (!focusedField || activeLang === 'English') {
+      setSuggestions([]);
+      return;
+    }
+
+    let activeVal = '';
+    if (focusedField === 'title') activeVal = title;
+    else if (focusedField === 'author') activeVal = author;
+    else if (focusedField === 'editor') activeVal = editor;
+    else if (focusedField === 'publisher') activeVal = publisher;
+    else if (focusedField === 'subject') activeVal = subject;
+    else if (focusedField === 'particular') activeVal = particular;
+
+    if (!activeVal.trim()) {
+      setSuggestions([]);
+      return;
+    }
+
+    const hasEnglish = /[a-zA-Z]/.test(activeVal);
+    if (!hasEnglish) {
+      setSuggestions([]);
+      return;
+    }
+
+    const delayTimer = setTimeout(async () => {
+      const candidates = await fetchGoogleTransliteration(activeVal, activeLang);
+      setSuggestions(candidates);
+    }, 250);
+
+    return () => clearTimeout(delayTimer);
+  }, [title, author, editor, publisher, subject, particular, focusedField, activeLang]);
 
   // Clear Form Fields
   const handleClear = () => {
@@ -255,6 +296,7 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter title..." 
               value={title}
+              onFocus={() => setFocusedField('title')}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
@@ -271,6 +313,7 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter author..." 
               value={author}
+              onFocus={() => setFocusedField('author')}
               onChange={(e) => setAuthor(e.target.value)}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
@@ -287,6 +330,7 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter editor..." 
               value={editor}
+              onFocus={() => setFocusedField('editor')}
               onChange={(e) => setEditor(e.target.value)}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
@@ -303,6 +347,7 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter publisher..." 
               value={publisher}
+              onFocus={() => setFocusedField('publisher')}
               onChange={(e) => setPublisher(e.target.value)}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
@@ -364,6 +409,7 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter subject..." 
               value={subject}
+              onFocus={() => setFocusedField('subject')}
               onChange={(e) => setSubject(e.target.value)}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
@@ -380,6 +426,7 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter details..." 
               value={particular}
+              onFocus={() => setFocusedField('particular')}
               onChange={(e) => setParticular(e.target.value)}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
@@ -387,6 +434,40 @@ export default function AdvanceSearch() {
           </div>
 
         </div>
+
+        {/* Google Input Tools Suggestions */}
+        <AnimatePresence>
+          {suggestions.length > 0 && focusedField && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-2 mb-4 flex flex-wrap gap-2 items-center px-4 py-2.5 bg-neutral-50/50 rounded-2xl border border-neutral-100"
+            >
+              <span className="text-[12px] font-bold text-neutral-400 mr-1 flex items-center gap-1 shrink-0">
+                <Sparkles size={12} className="text-[#FF6B00] animate-pulse" />
+                Did you mean for {focusedField} ({activeLang === 'Hindi' ? 'Hindi' : 'Gujarati'}):
+              </span>
+              {suggestions.map((cand, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (focusedField === 'title') setTitle(cand);
+                    else if (focusedField === 'author') setAuthor(cand);
+                    else if (focusedField === 'editor') setEditor(cand);
+                    else if (focusedField === 'publisher') setPublisher(cand);
+                    else if (focusedField === 'subject') setSubject(cand);
+                    else if (focusedField === 'particular') setParticular(cand);
+                    setSuggestions([]);
+                  }}
+                  className="px-3.5 py-1.5 rounded-full bg-white hover:bg-[#FF6B00] hover:text-white text-[#0A2540] text-[13px] font-extrabold shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(255,107,0,0.3)] transition-all duration-200 cursor-pointer border border-neutral-200/50"
+                >
+                  {cand}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bottom Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-neutral-100 pt-3">

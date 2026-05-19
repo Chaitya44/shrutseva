@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, ChevronLeft, ChevronRight, MoreHorizontal, Loader2 } from 'lucide-react';
 import ExpandedBookDetails from './ExpandedBookDetails';
 import { decryptAES128 } from '../utils/crypto';
+import { transliterateIndicToEnglish, hasIndicCharacters } from '../utils/transliteration';
+
 
 export default function BookTable({ books }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
@@ -159,12 +161,26 @@ export default function BookTable({ books }) {
                     </td>
                     <td className="px-5 py-4">
                       {isExpanded ? (
-                        <div className="flex items-center">
-                          <div className="w-1 h-6 bg-[#1565FF] rounded-r-md -ml-5 mr-4 shrink-0"></div>
-                          <span className="text-[14px] font-bold text-[#0A2540]">{book.name}</span>
+                        <div className="flex flex-col justify-center">
+                          <div className="flex items-center">
+                            <div className="w-1 h-6 bg-[#1565FF] rounded-r-md -ml-5 mr-4 shrink-0"></div>
+                            <span className="text-[14px] font-bold text-[#0A2540]">{book.name}</span>
+                          </div>
+                          {hasIndicCharacters(book.name) && (
+                            <div className="text-[12px] font-semibold text-neutral-400 mt-1 pl-4 italic tracking-wide">
+                              ({transliterateIndicToEnglish(book.name)})
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <span className="text-[14px] font-bold text-[#0A2540]">{book.name}</span>
+                        <div className="flex flex-col justify-center">
+                          <span className="text-[14px] font-bold text-[#0A2540]">{book.name}</span>
+                          {hasIndicCharacters(book.name) && (
+                            <div className="text-[12px] font-semibold text-neutral-400 mt-0.5 italic tracking-wide">
+                              ({transliterateIndicToEnglish(book.name)})
+                            </div>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.part || '-'}</td>
@@ -239,6 +255,11 @@ export default function BookTable({ books }) {
                   <h4 className="text-[14.5px] font-extrabold text-[#0A2540] hover:text-[#1565FF] transition-colors leading-snug cursor-pointer">
                     {book.name}
                   </h4>
+                  {hasIndicCharacters(book.name) && (
+                    <div className="text-[11.5px] font-bold text-neutral-400 mt-0.5 italic tracking-wide">
+                      ({transliterateIndicToEnglish(book.name)})
+                    </div>
+                  )}
                   <p className="text-[12px] text-neutral-500 font-medium mt-1">
                     <span className="text-neutral-400 font-bold uppercase text-[9.5px] tracking-wider mr-1">Author:</span> 
                     {book.author || 'Unknown'}
