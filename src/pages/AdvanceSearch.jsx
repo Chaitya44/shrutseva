@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Languages, MapPin, ChevronDown, RotateCcw, Printer, Search, BookOpen, User, Edit3, Building2, Tag, Info, Loader2 } from 'lucide-react';
+import { Languages, MapPin, ChevronDown, RotateCcw, Printer, Search, BookOpen, User, Edit3, Building2, Tag, Info, Loader2, Sparkles } from 'lucide-react';
 import BookTable from '../components/BookTable';
 import { fetchGoogleTransliteration } from '../utils/transliteration';
 
