@@ -119,46 +119,151 @@ class QuickAdvanceSearchController extends BaseController
         };
 
         if (!empty($request->title)) {
-            $applySearch($queryList, $request->title, [
-                'master.book_name_common',
-                'master.alternate_name_common',
-                'master.Kruti_common',
-            ]);
+            $titleTerm = $request->title;
+            $gujTitleTerm = $this->devanagariToGujarati($titleTerm);
+            $devTitleTerm = $this->gujaratiToDevanagari($titleTerm);
+            $queryList->where(function ($q) use ($applySearch, $titleTerm, $gujTitleTerm, $devTitleTerm) {
+                $q->where(function ($sq) use ($applySearch, $titleTerm) {
+                    $applySearch($sq, $titleTerm, [
+                        'master.book_name_common',
+                        'master.alternate_name_common',
+                        'master.Kruti_common',
+                    ]);
+                })->orWhere(function ($sq) use ($applySearch, $gujTitleTerm) {
+                    $applySearch($sq, $gujTitleTerm, [
+                        'master.book_name_common',
+                        'master.alternate_name_common',
+                        'master.Kruti_common',
+                    ]);
+                })->orWhere(function ($sq) use ($applySearch, $devTitleTerm) {
+                    $applySearch($sq, $devTitleTerm, [
+                        'master.book_name_hindi_common',
+                        'master.alternate_name_hindi_common',
+                        'master.Kruti_hindi_common',
+                    ]);
+                });
+            });
         }
 
         if (!empty($request->author)) {
-            $applySingle($queryList, 'master.author_common', $request->author);
+            $authorTerm = $request->author;
+            $gujAuthorTerm = $this->devanagariToGujarati($authorTerm);
+            $devAuthorTerm = $this->gujaratiToDevanagari($authorTerm);
+            $queryList->where(function ($q) use ($applySingle, $authorTerm, $gujAuthorTerm, $devAuthorTerm) {
+                $q->where(function ($sq) use ($applySingle, $authorTerm) {
+                    $applySingle($sq, 'master.author_common', $authorTerm);
+                })->orWhere(function ($sq) use ($applySingle, $gujAuthorTerm) {
+                    $applySingle($sq, 'master.author_common', $gujAuthorTerm);
+                })->orWhere(function ($sq) use ($applySingle, $devAuthorTerm) {
+                    $applySingle($sq, 'master.author_hindi_common', $devAuthorTerm);
+                });
+            });
         }
 
         if (!empty($request->editor)) {
-            $applySingle($queryList, 'master.editor_common', $request->editor);
+            $editorTerm = $request->editor;
+            $gujEditorTerm = $this->devanagariToGujarati($editorTerm);
+            $devEditorTerm = $this->gujaratiToDevanagari($editorTerm);
+            $queryList->where(function ($q) use ($applySingle, $editorTerm, $gujEditorTerm, $devEditorTerm) {
+                $q->where(function ($sq) use ($applySingle, $editorTerm) {
+                    $applySingle($sq, 'master.editor_common', $editorTerm);
+                })->orWhere(function ($sq) use ($applySingle, $gujEditorTerm) {
+                    $applySingle($sq, 'master.editor_common', $gujEditorTerm);
+                })->orWhere(function ($sq) use ($applySingle, $devEditorTerm) {
+                    $applySingle($sq, 'master.editor_hindi_common', $devEditorTerm);
+                });
+            });
         }
 
         if (!empty($request->publisher)) {
-            $applySingle($queryList, 'master.publisher_common', $request->publisher);
+            $pubTerm = $request->publisher;
+            $gujPubTerm = $this->devanagariToGujarati($pubTerm);
+            $devPubTerm = $this->gujaratiToDevanagari($pubTerm);
+            $queryList->where(function ($q) use ($applySingle, $pubTerm, $gujPubTerm, $devPubTerm) {
+                $q->where(function ($sq) use ($applySingle, $pubTerm) {
+                    $applySingle($sq, 'master.publisher_common', $pubTerm);
+                })->orWhere(function ($sq) use ($applySingle, $gujPubTerm) {
+                    $applySingle($sq, 'master.publisher_common', $gujPubTerm);
+                })->orWhere(function ($sq) use ($applySingle, $devPubTerm) {
+                    $applySingle($sq, 'master.publisher_hindi_common', $devPubTerm);
+                });
+            });
         }
 
         if (!empty($request->lang_name)) {
-            $langMap = [
-                'Gujarati' => 'G',
-                'Hindi' => 'H',
-                'English' => 'E',
-                'Sanskrit' => 'S',
-                'Prakrit' => 'P'
-            ];
             $langVal = $request->lang_name;
-            if (isset($langMap[$langVal])) {
-                $langVal = $langMap[$langVal];
+            if ($langVal === 'Gujarati') {
+                $queryList->where(function($q) {
+                    $q->where('master.language', 'like', '%G%')
+                      ->orWhere('master.language', 'like', '%ગુ%');
+                });
+            } else if ($langVal === 'Hindi') {
+                $queryList->where(function($q) {
+                    $q->where('master.language', 'like', '%H%')
+                      ->orWhere('master.language', 'like', '%હિ%')
+                      ->orWhere('master.language', 'like', '%હ%')
+                      ->orWhere('master.language', 'like', '%D%');
+                });
+            } else if ($langVal === 'Sanskrit') {
+                $queryList->where(function($q) {
+                    $q->where('master.language', 'like', '%S%')
+                      ->orWhere('master.language', 'like', '%સં%');
+                });
+            } else if ($langVal === 'Prakrit') {
+                $queryList->where(function($q) {
+                    $q->where('master.language', 'like', '%P%')
+                      ->orWhere('master.language', 'like', '%પ્રા%');
+                });
+            } else if ($langVal === 'English') {
+                $queryList->where(function($q) {
+                    $q->where('master.language', 'like', '%E%')
+                      ->orWhere('master.language', 'like', '%અં%')
+                      ->orWhere('master.language', 'like', '%ઇ%')
+                      ->orWhere('master.language', 'like', '%english%');
+                });
+            } else {
+                $langMap = [
+                    'Gujarati' => 'G',
+                    'Hindi' => 'H',
+                    'English' => 'E',
+                    'Sanskrit' => 'S',
+                    'Prakrit' => 'P'
+                ];
+                if (isset($langMap[$langVal])) {
+                    $langVal = $langMap[$langVal];
+                }
+                $queryList->where('master.language', 'like', $langVal . '%');
             }
-            $queryList->where('master.language', 'like', $langVal . '%');
         }
 
         if (!empty($request->subject)) {
-            $applySingle($queryList, 'master.subject_common', $request->subject);
+            $subTerm = $request->subject;
+            $gujSubTerm = $this->devanagariToGujarati($subTerm);
+            $devSubTerm = $this->gujaratiToDevanagari($subTerm);
+            $queryList->where(function ($q) use ($applySingle, $subTerm, $gujSubTerm, $devSubTerm) {
+                $q->where(function ($sq) use ($applySingle, $subTerm) {
+                    $applySingle($sq, 'master.subject_common', $subTerm);
+                })->orWhere(function ($sq) use ($applySingle, $gujSubTerm) {
+                    $applySingle($sq, 'master.subject_common', $gujSubTerm);
+                })->orWhere(function ($sq) use ($applySingle, $devSubTerm) {
+                    $applySingle($sq, 'master.subject_hindi_common', $devSubTerm);
+                });
+            });
         }
 
         if (!empty($request->perticular)) {
-            $applySingle($queryList, 'master.perticular_common', $request->perticular);
+            $pertTerm = $request->perticular;
+            $gujPertTerm = $this->devanagariToGujarati($pertTerm);
+            $devPertTerm = $this->gujaratiToDevanagari($pertTerm);
+            $queryList->where(function ($q) use ($applySingle, $pertTerm, $gujPertTerm, $devPertTerm) {
+                $q->where(function ($sq) use ($applySingle, $pertTerm) {
+                    $applySingle($sq, 'master.perticular_common', $pertTerm);
+                })->orWhere(function ($sq) use ($applySingle, $gujPertTerm) {
+                    $applySingle($sq, 'master.perticular_common', $gujPertTerm);
+                })->orWhere(function ($sq) use ($applySingle, $devPertTerm) {
+                    $applySingle($sq, 'master.perticular_hindi_common', $devPertTerm);
+                });
+            });
         }
 
         if (!empty($request->size)) {
@@ -172,16 +277,44 @@ class QuickAdvanceSearchController extends BaseController
                 $dSearch = $_GET['search']['value'];
             }
             if (!empty($dSearch)) {
-                $applySearch($queryList, $dSearch, [
-                    'master.book_name_common',
-                    'master.alternate_name_common',
-                    'master.perticular_common',
-                    'master.Kruti_common',
-                    'master.author_common',
-                    'master.editor_common',
-                    'master.publisher_common',
-                    'master.subject_common',
-                ]);
+                $gujDSearch = $this->devanagariToGujarati($dSearch);
+                $devDSearch = $this->gujaratiToDevanagari($dSearch);
+                $queryList->where(function ($q) use ($applySearch, $dSearch, $gujDSearch, $devDSearch) {
+                    $q->where(function ($sq) use ($applySearch, $dSearch) {
+                        $applySearch($sq, $dSearch, [
+                            'master.book_name_common',
+                            'master.alternate_name_common',
+                            'master.perticular_common',
+                            'master.Kruti_common',
+                            'master.author_common',
+                            'master.editor_common',
+                            'master.publisher_common',
+                            'master.subject_common',
+                        ]);
+                    })->orWhere(function ($sq) use ($applySearch, $gujDSearch) {
+                        $applySearch($sq, $gujDSearch, [
+                            'master.book_name_common',
+                            'master.alternate_name_common',
+                            'master.perticular_common',
+                            'master.Kruti_common',
+                            'master.author_common',
+                            'master.editor_common',
+                            'master.publisher_common',
+                            'master.subject_common',
+                        ]);
+                    })->orWhere(function ($sq) use ($applySearch, $devDSearch) {
+                        $applySearch($sq, $devDSearch, [
+                            'master.book_name_hindi_common',
+                            'master.alternate_name_hindi_common',
+                            'master.perticular_hindi_common',
+                            'master.Kruti_hindi_common',
+                            'master.author_hindi_common',
+                            'master.editor_hindi_common',
+                            'master.publisher_hindi_common',
+                            'master.subject_hindi_common',
+                        ]);
+                    });
+                });
             }
         }
 
@@ -613,44 +746,66 @@ class QuickAdvanceSearchController extends BaseController
 
         $queryList = (clone $baseQuery)->orderBy('master.book_name', 'ASC');
 
-        // Normalize the search term and match against pre-computed _common columns
+        // Normalize the search term and match against pre-computed Gujarati _common columns AND transliterated Devanagari _common columns
         $applySearch = function ($query, $term) {
             $searchTerm = trim((string) $term);
             if ($searchTerm === '') {
                 return;
             }
 
-            $terms = array_values(array_filter(preg_split('/\s+/', $searchTerm)));
-            if (empty($terms)) {
+            $gujSearchTerm = $this->devanagariToGujarati($searchTerm);
+            $devSearchTerm = $this->gujaratiToDevanagari($searchTerm);
+
+            $termsGuj = array_values(array_filter(preg_split('/\s+/', $gujSearchTerm)));
+            $termsDev = array_values(array_filter(preg_split('/\s+/', $devSearchTerm)));
+
+            if (empty($termsGuj)) {
                 return;
             }
 
-            $columns = [
-                'master.book_name_common',
-                'master.alternate_name_common',
-                'master.Kruti_common',
-                // 'master.author_common',
-                // 'master.editor_common',
-                // 'master.publisher_common',
-                // 'master.subject_common',
-                // 'master.perticular_common',
-            ];
-
-            $whereRawParams = [];
-            $colConditions = [];
-            foreach ($columns as $col) {
-                $perWord = [];
-                foreach ($terms as $t) {
-                    $normalized     = $this->normalizeToCommon($t);
-                    $normalizedNoSp = preg_replace('/\s+/', '', $normalized);
-                    $perWord[] = "($col LIKE ? OR REPLACE($col, ' ', '') LIKE ?)";
-                    $whereRawParams[] = '%' . $normalized . '%';
-                    $whereRawParams[] = '%' . $normalizedNoSp . '%';
-                }
-                $colConditions[] = '(' . implode(' AND ', $perWord) . ')';
-            }
-
-            $query->whereRaw('(' . implode(' OR ', $colConditions) . ')', $whereRawParams);
+            $query->where(function ($q) use ($termsGuj, $termsDev) {
+                $q->where(function ($subQ) use ($termsGuj) {
+                    $columnsGuj = [
+                        'master.book_name_common',
+                        'master.alternate_name_common',
+                        'master.Kruti_common',
+                    ];
+                    $whereRawParams = [];
+                    $colConditions = [];
+                    foreach ($columnsGuj as $col) {
+                        $perWord = [];
+                        foreach ($termsGuj as $t) {
+                            $normalized     = $this->normalizeToCommon($t);
+                            $normalizedNoSp = preg_replace('/\s+/', '', $normalized);
+                            $perWord[] = "($col LIKE ? OR REPLACE($col, ' ', '') LIKE ?)";
+                            $whereRawParams[] = '%' . $normalized . '%';
+                            $whereRawParams[] = '%' . $normalizedNoSp . '%';
+                        }
+                        $colConditions[] = '(' . implode(' AND ', $perWord) . ')';
+                    }
+                    $subQ->whereRaw('(' . implode(' OR ', $colConditions) . ')', $whereRawParams);
+                })->orWhere(function ($subQ) use ($termsDev) {
+                    $columnsDev = [
+                        'master.book_name_hindi_common',
+                        'master.alternate_name_hindi_common',
+                        'master.Kruti_hindi_common',
+                    ];
+                    $whereRawParams = [];
+                    $colConditions = [];
+                    foreach ($columnsDev as $col) {
+                        $perWord = [];
+                        foreach ($termsDev as $t) {
+                            $normalized     = $this->normalizeToCommon($t);
+                            $normalizedNoSp = preg_replace('/\s+/', '', $normalized);
+                            $perWord[] = "($col LIKE ? OR REPLACE($col, ' ', '') LIKE ?)";
+                            $whereRawParams[] = '%' . $normalized . '%';
+                            $whereRawParams[] = '%' . $normalizedNoSp . '%';
+                        }
+                        $colConditions[] = '(' . implode(' AND ', $perWord) . ')';
+                    }
+                    $subQ->whereRaw('(' . implode(' OR ', $colConditions) . ')', $whereRawParams);
+                });
+            });
         };
 
         // Main quick search (book name / alternate / kruti etc.)

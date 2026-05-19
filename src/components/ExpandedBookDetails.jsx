@@ -32,16 +32,20 @@ const DetailCard = ({ icon: Icon, label, value }) => (
 );
 
 const mapLanguageInitialToFull = (initial) => {
-  const mapping = {
-    'G': 'Gujarati',
-    'H': 'Hindi',
-    'E': 'English',
-    'S': 'Sanskrit',
-    'P': 'Prakrit'
-  };
   if (!initial) return '-';
-  const clean = initial.trim().toUpperCase();
-  return mapping[clean] || initial;
+  const val = initial.trim();
+  const results = [];
+  
+  if (/[Ggગુ]/u.test(val)) results.push('Gujarati');
+  if (/[HhહિહDd]/u.test(val)) results.push('Hindi');
+  if (/[Ssસં]/u.test(val)) results.push('Sanskrit');
+  if (/[Ppપ્રા]/u.test(val)) results.push('Prakrit');
+  if (/[Eeઅંઇ]/u.test(val) || val.toLowerCase().includes('english')) results.push('English');
+  
+  if (results.length > 0) {
+    return results.join(', ');
+  }
+  return initial;
 };
 
 export default function ExpandedBookDetails({ book }) {

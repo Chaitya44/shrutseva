@@ -114,4 +114,48 @@ trait NormalizesSearchTerm
 
         return preg_replace_callback($pattern, fn ($m) => $canonicalMap[$m[0]], $value);
     }
+
+    /**
+     * Transliterate Devanagari (Hindi) script text to Gujarati script text
+     */
+    public function devanagariToGujarati($text)
+    {
+        $result = '';
+        $len = mb_strlen($text, 'UTF-8');
+        for ($i = 0; $i < $len; $i++) {
+            $char = mb_substr($text, $i, 1, 'UTF-8');
+            $code = mb_ord($char, 'UTF-8');
+            // Devanagari block is 0x0900 - 0x097F
+            if ($code >= 0x0900 && $code <= 0x097F) {
+                // Corresponding Gujarati character is at +0x0180
+                $gujCode = $code + 0x0180;
+                $result .= mb_chr($gujCode, 'UTF-8');
+            } else {
+                $result .= $char;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Transliterate Gujarati script text to Devanagari (Hindi) script text
+     */
+    public function gujaratiToDevanagari($text)
+    {
+        $result = '';
+        $len = mb_strlen($text, 'UTF-8');
+        for ($i = 0; $i < $len; $i++) {
+            $char = mb_substr($text, $i, 1, 'UTF-8');
+            $code = mb_ord($char, 'UTF-8');
+            // Gujarati block is 0x0A80 - 0x0AFF
+            if ($code >= 0x0A80 && $code <= 0x0AFF) {
+                // Corresponding Devanagari character is at -0x0180
+                $devCode = $code - 0x0180;
+                $result .= mb_chr($devCode, 'UTF-8');
+            } else {
+                $result .= $char;
+            }
+        }
+        return $result;
+    }
 }
