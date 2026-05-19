@@ -50,7 +50,7 @@ export default function AdvanceSearch() {
   const [activeLang, setActiveLang] = useState('Gujarati');
 
   return (
-    <div className="w-full max-w-[1280px] px-6 sm:px-8 mx-auto pb-6 pt-14 sm:pt-16">
+    <div className="w-full max-w-[1280px] px-4 sm:px-8 mx-auto pb-6 pt-14 sm:pt-16">
       
       {/* Header Section */}
       <div className="mb-4 flex flex-col md:flex-row md:items-end justify-between gap-4">

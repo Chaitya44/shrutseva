@@ -51,7 +51,7 @@ export default function QuickSearch() {
   const [searchQuery, setSearchQuery] = useState('');
 
   return (
-    <div className="w-full max-w-[1120px] px-6 sm:px-8 mx-auto pb-6 pt-14 sm:pt-16">
+    <div className="w-full max-w-[1120px] px-4 sm:px-8 mx-auto pb-6 pt-14 sm:pt-16">
       
       {/* Header Section */}
       <div className="mb-6">
