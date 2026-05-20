@@ -29,6 +29,8 @@ export default function BookTable({ books }) {
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [detailsCache, setDetailsCache] = useState({});
   const [loadingIds, setLoadingIds] = useState({});
+  // books state patched with richer data after detail load
+  const [enrichedBooks, setEnrichedBooks] = useState({});
 
   // Sort state — default ascending by name
   const [sortField, setSortField] = useState('name');
@@ -150,6 +152,17 @@ export default function BookTable({ books }) {
           };
 
           setDetailsCache(prev => ({ ...prev, [id]: mappedDetails }));
+
+          // Patch enriched data into the books list so cells update
+          setEnrichedBooks(prev => ({
+            ...prev,
+            [id]: {
+              author:    mappedDetails.author    || '',
+              editor:    mappedDetails.editor    || '',
+              publisher: mappedDetails.publisher || '',
+              language:  mappedDetails.languageFull || '',
+            }
+          }));
         }
       } catch (err) {
         console.error("Failed to fetch book details:", err);
@@ -226,8 +239,12 @@ export default function BookTable({ books }) {
                       )}
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.part || '-'}</td>
-                    <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.author || '-'}</td>
-                    <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.editor || '-'}</td>
+                    <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
+                      {enrichedBooks[book.id]?.author || book.author || <span className="text-neutral-300 italic text-[12px]">—</span>}
+                    </td>
+                    <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
+                      {enrichedBooks[book.id]?.editor || book.editor || <span className="text-neutral-300 italic text-[12px]">—</span>}
+                    </td>
                     <td className="px-5 py-4 text-center">
                       {book.language ? (
                         <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[11px]">
@@ -237,7 +254,9 @@ export default function BookTable({ books }) {
                         '-'
                       )}
                     </td>
-                    <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.publisher || '-'}</td>
+                    <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
+                      {enrichedBooks[book.id]?.publisher || book.publisher || <span className="text-neutral-300 italic text-[12px]">—</span>}
+                    </td>
                   </tr>
 
                   {/* Expanded Content */}

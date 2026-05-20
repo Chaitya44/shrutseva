@@ -109,17 +109,26 @@ export default function AdvanceSearch() {
       
       if (json && json.data) {
         const mapped = json.data.map(item => ({
-          id: item.master_ssid,
-          master_ssid: item.master_ssid,
-          name: item.book_name,
-          part: item.part,
-          author: item.author,
-          editor: item.editor,
-          language: item.lang_name,
-          publisher: item.publisher
+          id:           item.master_ssid,
+          master_ssid:  item.master_ssid,
+          name:         item.book_name,
+          part:         item.part,
+          author:       item.author       || '',
+          editor:       item.editor       || '',
+          language:     item.lang_name    || '',
+          publisher:    item.publisher    || '',
+          // extra fields available from advance search API
+          alternateName: item.alternate_name || '',
+          kruti:        item.Kruti         || '',
+          subject:      item.subject       || '',
+          note:         item.book_note     || '',
+          page:         item.page          || '',
+          year:         item.year          || '',
+          edition:      item.edition       || '',
         }));
         setBooks(mapped);
       }
+
     } catch (err) {
       console.error("Advanced search query failed:", err);
     } finally {
