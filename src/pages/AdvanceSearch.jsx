@@ -56,28 +56,46 @@ export default function AdvanceSearch() {
     fetchCities();
   }, []);
 
-  const [titleSuggestions, setTitleSuggestions] = useState([]);
-  const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
-  const titleRef = useRef(null);
+  const [activeAutocomplete, setActiveAutocomplete] = useState(null);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
+  
+  const containerRef = useRef(null);
 
-  // Title autocomplete from backend
+  // Autocomplete from backend for all fields
   useEffect(() => {
-    if (!title || title.length < 2) { setTitleSuggestions([]); return; }
+    let query = '';
+    let endpoint = '';
+    
+    if (activeAutocomplete === 'title' && title.length >= 2) { query = title; endpoint = '/title-autocomplete'; }
+    else if (activeAutocomplete === 'author' && author.length >= 2) { query = author; endpoint = '/api/front/author_autocomplete'; }
+    else if (activeAutocomplete === 'editor' && editor.length >= 2) { query = editor; endpoint = '/editor-autocomplete'; }
+    else if (activeAutocomplete === 'publisher' && publisher.length >= 2) { query = publisher; endpoint = '/publisher-autocomplete'; }
+    else if (activeAutocomplete === 'subject' && subject.length >= 2) { query = subject; endpoint = '/topic-autocomplete'; }
+    else if (activeAutocomplete === 'particular' && particular.length >= 2) { query = particular; endpoint = '/api/front/perticular-autocomplete'; }
+    
+    if (!query) {
+      setAutocompleteSuggestions([]);
+      return;
+    }
+    
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/title-autocomplete?query=${encodeURIComponent(title.trim())}&lang=${activeLang === 'Hindi' ? 'hindi' : 'gujarati'}`);
+        const langParam = activeLang === 'Hindi' ? 'hindi' : 'gujarati';
+        const res = await fetch(`${endpoint}?query=${encodeURIComponent(query.trim())}&lang=${langParam}`);
         const json = await res.json();
-        if (json && json.data) setTitleSuggestions(json.data.slice(0, 8));
-        else if (Array.isArray(json)) setTitleSuggestions(json.slice(0, 8));
+        if (json && json.data) setAutocompleteSuggestions(json.data.slice(0, 8));
+        else if (Array.isArray(json)) setAutocompleteSuggestions(json.slice(0, 8));
       } catch(e) { /* silent */ }
     }, 300);
     return () => clearTimeout(t);
-  }, [title, activeLang]);
+  }, [activeAutocomplete, title, author, editor, publisher, subject, particular, activeLang]);
 
-  // Close title suggestions on outside click
+  // Close suggestions on outside click
   useEffect(() => {
     function h(e) {
-      if (titleRef.current && !titleRef.current.contains(e.target)) setShowTitleSuggestions(false);
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setActiveAutocomplete(null);
+      }
     }
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
@@ -241,11 +259,11 @@ export default function AdvanceSearch() {
           </h1>
 
           {/* Language Toggle Context */}
-          <div className="relative inline-flex items-center p-1 bg-white/80 backdrop-blur-xl rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.06)] border border-white overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/90 to-transparent pointer-events-none rounded-t-full" />
-            <button
-              onClick={() => setActiveLang('Gujarati')}
-              className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 ${
+          {/* Search Fields Grid */}
+      <div ref={containerRef} className="bg-white/80 backdrop-blur-xl rounded-[28px] p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.04)] border border-white relative overflow-hidden mb-8">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#00b6be]/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 mb-4 relative z-10"> flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 ${
                 activeLang === 'Gujarati'
                   ? 'bg-[#00b6be] text-white shadow-[0_4px_16px_rgba(0,182,190,0.4)]'
                   : 'bg-transparent text-[#00b6be] hover:bg-neutral-50 cursor-pointer'
@@ -327,7 +345,7 @@ export default function AdvanceSearch() {
           </div>
 
           {/* Title */}
-          <div ref={titleRef} className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative">
+          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative">
             <div className="flex items-center gap-1.5 mb-0.5 text-[#0A2540]/60 group-focus-within:text-[#FF6B00] transition-colors">
               <BookOpen size={13} strokeWidth={2.5} />
               <label className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Title</label>
@@ -336,15 +354,15 @@ export default function AdvanceSearch() {
               type="text"
               placeholder="Enter title..."
               value={title}
-              onFocus={() => { setFocusedField('title'); setShowTitleSuggestions(true); }}
-              onChange={(e) => { setTitle(e.target.value); setShowTitleSuggestions(true); }}
+              onFocus={() => { setFocusedField('title'); setActiveAutocomplete('title'); }}
+              onChange={(e) => { setTitle(e.target.value); setActiveAutocomplete('title'); }}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium"
             />
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FF6B00] to-[#FF9F1C] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300 origin-left" />
 
             {/* Title autocomplete dropdown */}
             <AnimatePresence>
-              {showTitleSuggestions && titleSuggestions.length > 0 && (
+              {activeAutocomplete === 'title' && autocompleteSuggestions.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -4, scaleY: 0.95 }}
                   animate={{ opacity: 1, y: 0, scaleY: 1 }}
@@ -352,10 +370,10 @@ export default function AdvanceSearch() {
                   transition={{ duration: 0.15 }}
                   className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
                 >
-                  {titleSuggestions.map((s, i) => (
+                  {autocompleteSuggestions.map((s, i) => (
                     <button
                       key={i}
-                      onMouseDown={(e) => { e.preventDefault(); setTitle(s); setShowTitleSuggestions(false); }}
+                      onMouseDown={(e) => { e.preventDefault(); setTitle(s); setActiveAutocomplete(null); }}
                       className={`w-full text-left px-4 py-2 text-[13px] font-semibold transition-colors cursor-pointer ${
                         i === 0 ? 'bg-[#012c77]/5 text-[#012c77] font-bold' : 'text-neutral-700 hover:bg-neutral-50'
                       }`}
@@ -369,7 +387,7 @@ export default function AdvanceSearch() {
           </div>
 
           {/* Author */}
-          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-hidden">
+          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-visible z-30">
             <div className="flex items-center gap-1.5 mb-0.5 text-[#0A2540]/60 group-focus-within:text-[#FF6B00] transition-colors">
               <User size={13} strokeWidth={2.5} />
               <label className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Author</label>
@@ -378,15 +396,38 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter author..." 
               value={author}
-              onFocus={() => setFocusedField('author')}
-              onChange={(e) => setAuthor(e.target.value)}
+              onFocus={() => { setFocusedField('author'); setActiveAutocomplete('author'); }}
+              onChange={(e) => { setAuthor(e.target.value); setActiveAutocomplete('author'); }}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FF6B00] to-[#FF9F1C] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300 origin-left" />
+            
+            {/* Author autocomplete dropdown */}
+            <AnimatePresence>
+              {activeAutocomplete === 'author' && autocompleteSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                  exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
+                >
+                  {autocompleteSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); setAuthor(s); setActiveAutocomplete(null); }}
+                      className={`w-full text-left px-4 py-2 text-[13px] font-semibold transition-colors cursor-pointer text-neutral-700 hover:bg-neutral-50`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Editor */}
-          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-hidden">
+          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-visible z-20">
             <div className="flex items-center gap-1.5 mb-0.5 text-[#0A2540]/60 group-focus-within:text-[#FF6B00] transition-colors">
               <Edit3 size={13} strokeWidth={2.5} />
               <label className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Editor</label>
@@ -395,15 +436,38 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter editor..." 
               value={editor}
-              onFocus={() => setFocusedField('editor')}
-              onChange={(e) => setEditor(e.target.value)}
+              onFocus={() => { setFocusedField('editor'); setActiveAutocomplete('editor'); }}
+              onChange={(e) => { setEditor(e.target.value); setActiveAutocomplete('editor'); }}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FF6B00] to-[#FF9F1C] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300 origin-left" />
+            
+            {/* Editor autocomplete dropdown */}
+            <AnimatePresence>
+              {activeAutocomplete === 'editor' && autocompleteSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                  exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
+                >
+                  {autocompleteSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); setEditor(s); setActiveAutocomplete(null); }}
+                      className={`w-full text-left px-4 py-2 text-[13px] font-semibold transition-colors cursor-pointer text-neutral-700 hover:bg-neutral-50`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Publisher */}
-          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-hidden">
+          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-visible z-10">
             <div className="flex items-center gap-1.5 mb-0.5 text-[#0A2540]/60 group-focus-within:text-[#FF6B00] transition-colors">
               <Building2 size={13} strokeWidth={2.5} />
               <label className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Publisher</label>
@@ -412,11 +476,34 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter publisher..." 
               value={publisher}
-              onFocus={() => setFocusedField('publisher')}
-              onChange={(e) => setPublisher(e.target.value)}
+              onFocus={() => { setFocusedField('publisher'); setActiveAutocomplete('publisher'); }}
+              onChange={(e) => { setPublisher(e.target.value); setActiveAutocomplete('publisher'); }}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FF6B00] to-[#FF9F1C] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300 origin-left" />
+            
+            {/* Publisher autocomplete dropdown */}
+            <AnimatePresence>
+              {activeAutocomplete === 'publisher' && autocompleteSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                  exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
+                >
+                  {autocompleteSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); setPublisher(s); setActiveAutocomplete(null); }}
+                      className={`w-full text-left px-4 py-2 text-[13px] font-semibold transition-colors cursor-pointer text-neutral-700 hover:bg-neutral-50`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Language Dropdown */}
@@ -465,7 +552,7 @@ export default function AdvanceSearch() {
           </div>
 
           {/* Subject */}
-          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-hidden">
+          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-visible z-[5]">
             <div className="flex items-center gap-1.5 mb-0.5 text-[#0A2540]/60 group-focus-within:text-[#FF6B00] transition-colors">
               <Tag size={13} strokeWidth={2.5} />
               <label className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Subject</label>
@@ -474,15 +561,38 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter subject..." 
               value={subject}
-              onFocus={() => setFocusedField('subject')}
-              onChange={(e) => setSubject(e.target.value)}
+              onFocus={() => { setFocusedField('subject'); setActiveAutocomplete('subject'); }}
+              onChange={(e) => { setSubject(e.target.value); setActiveAutocomplete('subject'); }}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FF6B00] to-[#FF9F1C] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300 origin-left" />
+            
+            {/* Subject autocomplete dropdown */}
+            <AnimatePresence>
+              {activeAutocomplete === 'subject' && autocompleteSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                  exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
+                >
+                  {autocompleteSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); setSubject(s); setActiveAutocomplete(null); }}
+                      className={`w-full text-left px-4 py-2 text-[13px] font-semibold transition-colors cursor-pointer text-neutral-700 hover:bg-neutral-50`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Book Details */}
-          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-hidden">
+          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-visible z-[4]">
             <div className="flex items-center gap-1.5 mb-0.5 text-[#0A2540]/60 group-focus-within:text-[#FF6B00] transition-colors">
               <Info size={13} strokeWidth={2.5} />
               <label className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Book Details</label>
@@ -491,11 +601,34 @@ export default function AdvanceSearch() {
               type="text" 
               placeholder="Enter details..." 
               value={particular}
-              onFocus={() => setFocusedField('particular')}
-              onChange={(e) => setParticular(e.target.value)}
+              onFocus={() => { setFocusedField('particular'); setActiveAutocomplete('particular'); }}
+              onChange={(e) => { setParticular(e.target.value); setActiveAutocomplete('particular'); }}
               className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
             />
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FF6B00] to-[#FF9F1C] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300 origin-left" />
+            
+            {/* Particular autocomplete dropdown */}
+            <AnimatePresence>
+              {activeAutocomplete === 'particular' && autocompleteSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                  exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
+                >
+                  {autocompleteSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); setParticular(s); setActiveAutocomplete(null); }}
+                      className={`w-full text-left px-4 py-2 text-[13px] font-semibold transition-colors cursor-pointer text-neutral-700 hover:bg-neutral-50`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
         </div>
