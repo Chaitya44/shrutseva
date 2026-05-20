@@ -259,11 +259,11 @@ export default function AdvanceSearch() {
           </h1>
 
           {/* Language Toggle Context */}
-          {/* Search Fields Grid */}
-      <div ref={containerRef} className="bg-white/80 backdrop-blur-xl rounded-[28px] p-5 sm:p-7 shadow-[0_8px_32px_rgba(0,0,0,0.04)] border border-white relative overflow-hidden mb-8">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-[#00b6be]/10 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 mb-4 relative z-10"> flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 ${
+          <div className="relative inline-flex items-center p-1 bg-white/80 backdrop-blur-xl rounded-full shadow-[0_8px_24px_rgba(0,0,0,0.06)] border border-white overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/90 to-transparent pointer-events-none rounded-t-full" />
+            <button
+              onClick={() => setActiveLang('Gujarati')}
+              className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 \${
                 activeLang === 'Gujarati'
                   ? 'bg-[#00b6be] text-white shadow-[0_4px_16px_rgba(0,182,190,0.4)]'
                   : 'bg-transparent text-[#00b6be] hover:bg-neutral-50 cursor-pointer'
@@ -297,7 +297,7 @@ export default function AdvanceSearch() {
         <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-white via-white/40 to-transparent pointer-events-none rounded-t-[24px]" />
 
         {/* Form Grid */}
-        <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-4">
+        <div ref={containerRef} className="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3 mb-4">
           
           {/* City Dropdown */}
           <div ref={cityDropdownRef} className="relative xl:col-span-1">
