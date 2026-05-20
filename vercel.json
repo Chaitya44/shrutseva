@@ -13,6 +13,22 @@
       "destination": "https://147.93.155.190/test/get_bhandars_list"
     },
     {
+      "source": "/title-autocomplete",
+      "destination": "https://147.93.155.190/test/title-autocomplete"
+    },
+    {
+      "source": "/publisher-autocomplete",
+      "destination": "https://147.93.155.190/test/publisher-autocomplete"
+    },
+    {
+      "source": "/editor-autocomplete",
+      "destination": "https://147.93.155.190/test/editor-autocomplete"
+    },
+    {
+      "source": "/topic-autocomplete",
+      "destination": "https://147.93.155.190/test/topic-autocomplete"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

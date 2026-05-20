@@ -65,7 +65,7 @@ export default function AdvanceSearch() {
     if (!title || title.length < 2) { setTitleSuggestions([]); return; }
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/front/title_autocomplete?query=${encodeURIComponent(title.trim())}&lang=${activeLang === 'Hindi' ? 'hindi' : 'gujarati'}`);
+        const res = await fetch(`/title-autocomplete?query=${encodeURIComponent(title.trim())}&lang=${activeLang === 'Hindi' ? 'hindi' : 'gujarati'}`);
         const json = await res.json();
         if (json && json.data) setTitleSuggestions(json.data.slice(0, 8));
         else if (Array.isArray(json)) setTitleSuggestions(json.slice(0, 8));
