@@ -6,6 +6,21 @@ import { decryptAES128 } from '../utils/crypto';
 import { transliterateIndicToEnglish, hasIndicCharacters } from '../utils/transliteration';
 import { useAuth } from '../context/AuthContext';
 
+/** Highlight matching substrings in yellow */
+function Highlight({ text, query }) {
+  if (!query || !text) return <span>{text || '-'}</span>;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const parts = String(text).split(new RegExp(`(${escaped})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === query.toLowerCase()
+          ? <mark key={i} className="bg-yellow-200 text-yellow-900 rounded px-0.5 font-bold not-italic">{part}</mark>
+          : part
+      )}
+    </span>
+  );
+}
 
 const mapLanguageInitialToFull = (initial) => {
   if (!initial) return '-';
@@ -24,13 +39,20 @@ const mapLanguageInitialToFull = (initial) => {
   return initial;
 };
 
-export default function BookTable({ books }) {
+export default function BookTable({ books, activeLang = 'Gujarati', searchQuery = '' }) {
   const { isLoggedIn } = useAuth();
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [detailsCache, setDetailsCache] = useState({});
   const [loadingIds, setLoadingIds] = useState({});
   // books state patched with richer data after detail load
   const [enrichedBooks, setEnrichedBooks] = useState({});
+
+  // Pick the right display name based on active language
+  // books have: name (Gujarati), name_hindi (Hindi, if present)
+  const displayName = (book) => {
+    if (activeLang === 'Hindi' && book.name_hindi) return book.name_hindi;
+    return book.name || '-';
+  };;
 
   // Sort state — default ascending by name
   const [sortField, setSortField] = useState('name');
@@ -219,20 +241,24 @@ export default function BookTable({ books }) {
                         <div className="flex flex-col justify-center">
                           <div className="flex items-center">
                             <div className="w-1 h-6 bg-[#1565FF] rounded-r-md -ml-5 mr-4 shrink-0"></div>
-                            <span className="text-[14px] font-bold text-[#0A2540]">{book.name}</span>
+                            <span className="text-[14px] font-bold text-[#0A2540]">
+                              <Highlight text={displayName(book)} query={searchQuery} />
+                            </span>
                           </div>
-                          {hasIndicCharacters(book.name) && (
+                          {hasIndicCharacters(displayName(book)) && (
                             <div className="text-[12px] font-semibold text-neutral-400 mt-1 pl-4 italic tracking-wide">
-                              ({transliterateIndicToEnglish(book.name)})
+                              ({transliterateIndicToEnglish(displayName(book))})
                             </div>
                           )}
                         </div>
                       ) : (
                         <div className="flex flex-col justify-center">
-                          <span className="text-[14px] font-bold text-[#0A2540]">{book.name}</span>
-                          {hasIndicCharacters(book.name) && (
+                          <span className="text-[14px] font-bold text-[#0A2540]">
+                            <Highlight text={displayName(book)} query={searchQuery} />
+                          </span>
+                          {hasIndicCharacters(displayName(book)) && (
                             <div className="text-[12px] font-semibold text-neutral-400 mt-0.5 italic tracking-wide">
-                              ({transliterateIndicToEnglish(book.name)})
+                              ({transliterateIndicToEnglish(displayName(book))})
                             </div>
                           )}
                         </div>
@@ -240,10 +266,12 @@ export default function BookTable({ books }) {
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.part || '-'}</td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
-                      {enrichedBooks[book.id]?.author || book.author || <span className="text-neutral-300 italic text-[12px]">—</span>}
+                      <Highlight text={enrichedBooks[book.id]?.author || book.author || ''} query={searchQuery} />
+                      {!(enrichedBooks[book.id]?.author || book.author) && <span className="text-neutral-300 italic text-[12px]">—</span>}
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
-                      {enrichedBooks[book.id]?.editor || book.editor || <span className="text-neutral-300 italic text-[12px]">—</span>}
+                      <Highlight text={enrichedBooks[book.id]?.editor || book.editor || ''} query={searchQuery} />
+                      {!(enrichedBooks[book.id]?.editor || book.editor) && <span className="text-neutral-300 italic text-[12px]">—</span>}
                     </td>
                     <td className="px-5 py-4 text-center">
                       {book.language ? (
@@ -255,7 +283,8 @@ export default function BookTable({ books }) {
                       )}
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
-                      {enrichedBooks[book.id]?.publisher || book.publisher || <span className="text-neutral-300 italic text-[12px]">—</span>}
+                      <Highlight text={enrichedBooks[book.id]?.publisher || book.publisher || ''} query={searchQuery} />
+                      {!(enrichedBooks[book.id]?.publisher || book.publisher) && <span className="text-neutral-300 italic text-[12px]">—</span>}
                     </td>
                   </tr>
 
@@ -314,17 +343,23 @@ export default function BookTable({ books }) {
                     ) : null}
                   </div>
                   <h4 className="text-[14.5px] font-extrabold text-[#0A2540] hover:text-[#1565FF] transition-colors leading-snug cursor-pointer">
-                    {book.name}
+                    <Highlight text={displayName(book)} query={searchQuery} />
                   </h4>
-                  {hasIndicCharacters(book.name) && (
+                  {hasIndicCharacters(displayName(book)) && (
                     <div className="text-[11.5px] font-bold text-neutral-400 mt-0.5 italic tracking-wide">
-                      ({transliterateIndicToEnglish(book.name)})
+                      ({transliterateIndicToEnglish(displayName(book))})
                     </div>
                   )}
                   <p className="text-[12px] text-neutral-500 font-medium mt-1">
-                    <span className="text-neutral-400 font-bold uppercase text-[9.5px] tracking-wider mr-1">Author:</span> 
-                    {book.author || 'Unknown'}
+                    <span className="text-neutral-400 font-bold uppercase text-[9.5px] tracking-wider mr-1">Author:</span>
+                    <Highlight text={enrichedBooks[book.id]?.author || book.author || 'Unknown'} query={searchQuery} />
                   </p>
+                  {(enrichedBooks[book.id]?.publisher || book.publisher) && (
+                    <p className="text-[12px] text-neutral-500 font-medium mt-0.5">
+                      <span className="text-neutral-400 font-bold uppercase text-[9.5px] tracking-wider mr-1">Publisher:</span>
+                      <Highlight text={enrichedBooks[book.id]?.publisher || book.publisher} query={searchQuery} />
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => toggleRow(book.id, book.master_ssid || book.id)}
@@ -354,7 +389,7 @@ export default function BookTable({ books }) {
                         <span className="text-[12px] tracking-wide animate-pulse">Decrypting available details...</span>
                       </div>
                     ) : details ? (
-                      <ExpandedBookDetails book={details} />
+                      <ExpandedBookDetails book={details} isAdmin={isLoggedIn} />
                     ) : (
                       <div className="py-4 text-center text-neutral-400 font-medium">Failed to load details.</div>
                     )}

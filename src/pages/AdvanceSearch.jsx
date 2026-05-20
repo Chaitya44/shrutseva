@@ -578,7 +578,7 @@ export default function AdvanceSearch() {
             <span className="text-[14px] tracking-wide animate-pulse">Running advanced registry search...</span>
           </div>
         ) : filteredBooks.length > 0 ? (
-          <BookTable books={filteredBooks} />
+          <BookTable books={filteredBooks} activeLang={activeLang} searchQuery={title || author || publisher || ''} />
         ) : title || author || editor || publisher || subject || particular || activeCity !== 'All Cities' ? (
           <div className="bg-white/80 backdrop-blur-md border border-neutral-200/50 rounded-3xl p-12 text-center shadow-sm">
             <span className="text-[36px]">🔍</span>

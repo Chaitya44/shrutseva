@@ -270,7 +270,7 @@ export default function QuickSearch() {
       >
         {searchQuery.trim() ? (
           books.length > 0 ? (
-            <BookTable books={books} />
+            <BookTable books={books} activeLang={activeLang} searchQuery={searchQuery} />
           ) : !loading ? (
             <div className="bg-white/80 backdrop-blur-md border border-neutral-200/50 rounded-3xl p-12 text-center shadow-sm">
               <span className="text-[36px]">🔍</span>
