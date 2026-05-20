@@ -242,10 +242,8 @@ export default function QuickSearch() {
               exit={{ opacity: 0, height: 0 }}
               className="mt-3 flex flex-wrap gap-2 items-center px-4 py-2 bg-neutral-50/50 rounded-2xl border border-neutral-100"
             >
-              <span className="text-[12px] font-bold text-neutral-400 mr-1 flex items-center gap-1 shrink-0">
-                <Sparkles size={12} className="text-[#FF6B00] animate-pulse" />
-                Did you mean ({activeLang === 'Hindi' ? 'Hindi' : 'Gujarati'}):
-              </span>
+
+
               {suggestions.map((cand, idx) => (
                 <button
                   key={idx}
