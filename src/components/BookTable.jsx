@@ -276,7 +276,7 @@ export default function BookTable({ books }) {
                                 <span className="text-[13px] tracking-wide animate-pulse">Decrypting and loading available inventory details...</span>
                               </div>
                             ) : details ? (
-                              <ExpandedBookDetails book={details} isAdmin={isLoggedIn} bhandarData={bhandarData} />
+                              <ExpandedBookDetails book={details} isAdmin={isLoggedIn} />
                             ) : (
                               <div className="py-6 text-center text-neutral-400 font-medium">Failed to load details.</div>
                             )}
