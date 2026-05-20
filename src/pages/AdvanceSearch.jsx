@@ -263,7 +263,7 @@ export default function AdvanceSearch() {
             <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/90 to-transparent pointer-events-none rounded-t-full" />
             <button
               onClick={() => setActiveLang('Gujarati')}
-              className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 \${
+              className={`relative z-10 flex items-center gap-2 px-6 py-2.5 rounded-full text-[14px] font-bold tracking-wide transition-all duration-300 ${
                 activeLang === 'Gujarati'
                   ? 'bg-[#00b6be] text-white shadow-[0_4px_16px_rgba(0,182,190,0.4)]'
                   : 'bg-transparent text-[#00b6be] hover:bg-neutral-50 cursor-pointer'
