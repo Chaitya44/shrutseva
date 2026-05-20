@@ -50,13 +50,8 @@ export default function Navbar() {
 
   const showSelectorInNavbar = location.pathname === '/' || location.pathname === '/about';
 
-  const links = isLoggedIn
-    ? [
-        ...NAV_LINKS,
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Add Book', href: '/add-book' }
-      ]
-    : NAV_LINKS;
+  const links = NAV_LINKS;
+
 
   return (
     <motion.header

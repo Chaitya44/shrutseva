@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ChevronLeft, ChevronRight, MoreHorizontal, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Minus, ChevronLeft, ChevronRight, MoreHorizontal, Loader2, ArrowUp, ArrowDown, ChevronRight as NavNext, ChevronLeft as NavPrev } from 'lucide-react';
 import ExpandedBookDetails from './ExpandedBookDetails';
 import { decryptAES128 } from '../utils/crypto';
 import { transliterateIndicToEnglish, hasIndicCharacters } from '../utils/transliteration';
@@ -35,6 +35,13 @@ const mapLanguageInitialToFull = (initial) => {
   return initial;
 };
 
+// Parse part as number for sort (handles "1", "2", "Part 1", etc.)
+const parsePart = (p) => {
+  if (!p) return 0;
+  const n = parseInt(String(p).replace(/\D/g, ''), 10);
+  return isNaN(n) ? 0 : n;
+};
+
 export default function BookTable({ books, activeLang = 'Gujarati', searchQuery = '' }) {
   const { isLoggedIn } = useAuth();
   const [expandedRowId, setExpandedRowId] = useState(null);
@@ -42,8 +49,8 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
   const [loadingIds, setLoadingIds] = useState({});
   const [enrichedBooks, setEnrichedBooks] = useState({});
 
-  // Refs for scroll-to-expanded on mobile
-  const rowRefs = useRef({});
+  // Scroll-anchor fix: save scroll Y before state update, restore after layout
+  const savedScrollRef = useRef(null);
 
   // Pick the right display name based on active language
   const displayName = (book) => {
@@ -51,7 +58,7 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
     return book.name || '-';
   };
 
-  // Sort state — default ascending by name
+  // Sort: primary by name asc, secondary by part numeric asc
   const [sortField, setSortField] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
 
@@ -60,29 +67,41 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
 
-  // Reset page when books change
   React.useEffect(() => {
     setCurrentPage(1);
-    setExpandedRowId(null); // close expanded when results change
+    setExpandedRowId(null);
   }, [books]);
 
-  // Sort + Pagination Logic
+  // Sort: name asc + part numeric asc as secondary (always)
   const sortedBooks = [...books].sort((a, b) => {
-    const av = (a[sortField] || '').toString().toLowerCase();
-    const bv = (b[sortField] || '').toString().toLowerCase();
+    let av, bv;
+    if (sortField === 'name') {
+      av = (a.name || '').toLowerCase();
+      bv = (b.name || '').toLowerCase();
+      if (av === bv) {
+        // secondary: part numeric ascending
+        return parsePart(a.part) - parsePart(b.part);
+      }
+      return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    }
+    av = (a[sortField] || '').toString().toLowerCase();
+    bv = (b[sortField] || '').toString().toLowerCase();
     if (av < bv) return sortDir === 'asc' ? -1 : 1;
     if (av > bv) return sortDir === 'asc' ? 1 : -1;
     return 0;
   });
+
   const totalItems = sortedBooks.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentBooks = sortedBooks.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Global index of expanded book (across currentBooks)
+  const expandedIdx = currentBooks.findIndex(b => b.id === expandedRowId);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -101,49 +120,45 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
     return group;
   };
 
+  // Restore scroll position after render to prevent jump
+  useLayoutEffect(() => {
+    if (savedScrollRef.current !== null) {
+      window.scrollTo(0, savedScrollRef.current);
+      savedScrollRef.current = null;
+    }
+  });
+
   const toggleRow = async (id, masterSsid) => {
     const isCurrentlyExpanded = expandedRowId === id;
-    const nextId = isCurrentlyExpanded ? null : id;
-    setExpandedRowId(nextId);
+    // Save scroll BEFORE state change
+    savedScrollRef.current = window.scrollY;
+    setExpandedRowId(isCurrentlyExpanded ? null : id);
 
-    // Scroll the tapped row into view smoothly after animation starts (mobile fix)
-    if (!isCurrentlyExpanded) {
-      setTimeout(() => {
-        const el = rowRefs.current[id];
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 80); // slight delay so expand animation has begun
-    }
-
-    // If expanding and not in cache, fetch rich details
     if (!isCurrentlyExpanded && !detailsCache[id]) {
       setLoadingIds(prev => ({ ...prev, [id]: true }));
       try {
         const bookObj = books.find(b => b.id === id);
         const bookLang = bookObj?.language;
-        const isHindiContext = bookLang === 'H' || bookLang === 'S' || bookLang === 'P' || bookLang === 'Hindi' || bookLang === 'Sanskrit' || bookLang === 'Prakrit';
+        const isHindiContext = ['H','S','P','Hindi','Sanskrit','Prakrit'].includes(bookLang);
         const endpoint = isHindiContext ? '/front/quick_hindi_book_details' : '/front/get_book_details';
         const response = await fetch(`${endpoint}?master_ssid=${masterSsid}`);
         const result = await response.json();
 
         if (result && result.data) {
           const detail = result.data;
-
           const decryptedBookNum = await decryptAES128(detail.book_number);
           const decryptedSname = await decryptAES128(detail.sname);
-
           const codes = detail.bhandar_code ? detail.bhandar_code.split(',') : [];
           const bookNums = decryptedBookNum ? decryptedBookNum.split(',') : [];
           const names = decryptedSname ? decryptedSname.split('|') : [];
           const cities = detail.city ? detail.city.split('|') : [];
           const mobiles = detail.mobile ? detail.mobile.split(',') : [];
-
           const bhandars = codes.map((code, idx) => ({
             bookNumber: bookNums[idx] || '-',
             name: names[idx] || '-',
             city: cities[idx] || '-',
             contact: mobiles[idx] || '-'
           }));
-
           const mappedDetails = {
             id: detail.master_ssid,
             name: detail.book_name,
@@ -162,30 +177,62 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
             particular: detail.perticular,
             bhandars: bhandars
           };
-
           setDetailsCache(prev => ({ ...prev, [id]: mappedDetails }));
           setEnrichedBooks(prev => ({
             ...prev,
             [id]: {
-              author:    mappedDetails.author    || '',
-              editor:    mappedDetails.editor    || '',
+              author: mappedDetails.author || '',
+              editor: mappedDetails.editor || '',
               publisher: mappedDetails.publisher || '',
-              language:  mappedDetails.languageFull || '',
+              language: mappedDetails.languageFull || '',
             }
           }));
-
-          // Re-scroll once data loads (content height changed)
-          setTimeout(() => {
-            const el = rowRefs.current[id];
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }, 150);
         }
       } catch (err) {
-        console.error("Failed to fetch book details:", err);
+        console.error('Failed to fetch book details:', err);
       } finally {
         setLoadingIds(prev => ({ ...prev, [id]: false }));
       }
     }
+  };
+
+  // Navigate prev/next expanded result
+  const navigateExpanded = (direction) => {
+    const nextIdx = expandedIdx + direction;
+    if (nextIdx < 0 || nextIdx >= currentBooks.length) return;
+    const nextBook = currentBooks[nextIdx];
+    // Save scroll before nav
+    savedScrollRef.current = window.scrollY;
+    setExpandedRowId(nextBook.id);
+    if (!detailsCache[nextBook.id]) {
+      toggleRow(nextBook.id, nextBook.master_ssid || nextBook.id);
+    }
+  };
+
+  // Nav bar shown at top of expanded panel
+  const ExpandedNav = ({ bookId }) => {
+    const idx = currentBooks.findIndex(b => b.id === bookId);
+    const hasPrev = idx > 0;
+    const hasNext = idx < currentBooks.length - 1;
+    return (
+      <div className="flex items-center justify-between px-4 py-2 bg-[#012c77] text-white text-[12px] font-bold select-none">
+        <button
+          onClick={(e) => { e.stopPropagation(); savedScrollRef.current = window.scrollY; navigateExpanded(-1); }}
+          disabled={!hasPrev}
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${hasPrev ? 'hover:bg-white/10 cursor-pointer' : 'opacity-30 cursor-not-allowed'}`}
+        >
+          <ChevronLeft size={14} strokeWidth={2.5} /> Prev
+        </button>
+        <span className="text-[11px] text-white/70 font-medium">{idx + 1} / {currentBooks.length}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); savedScrollRef.current = window.scrollY; navigateExpanded(1); }}
+          disabled={!hasNext}
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${hasNext ? 'hover:bg-white/10 cursor-pointer' : 'opacity-30 cursor-not-allowed'}`}
+        >
+          Next <ChevronRight size={14} strokeWidth={2.5} />
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -213,73 +260,48 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
               const isExpanded = expandedRowId === book.id;
               const isLoading = loadingIds[book.id];
               const details = detailsCache[book.id];
-
               return (
                 <React.Fragment key={book.id}>
                   <tr className={`border-b border-neutral-100 transition-colors ${isExpanded ? 'bg-[#F8FAFC]' : 'hover:bg-neutral-50 bg-white'}`}>
                     <td className="px-5 py-4 align-middle">
                       <button
                         onClick={() => toggleRow(book.id, book.master_ssid || book.id)}
-                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                          isExpanded
-                            ? 'bg-[#1565FF] text-white'
-                            : 'bg-[#00b6be] text-white hover:bg-[#009ca3]'
-                        }`}
+                        className={`w-7 h-7 rounded-full flex items-center justify-center transition-all shadow-sm ${isExpanded ? 'bg-[#1565FF] text-white' : 'bg-[#00b6be] text-white hover:bg-[#009ca3]'}`}
                       >
                         {isExpanded ? <Minus size={16} strokeWidth={3} /> : <Plus size={16} strokeWidth={3} />}
                       </button>
                     </td>
                     <td className="px-5 py-4">
-                      {isExpanded ? (
-                        <div className="flex flex-col justify-center">
-                          <div className="flex items-center">
-                            <div className="w-1 h-6 bg-[#1565FF] rounded-r-md -ml-5 mr-4 shrink-0"></div>
-                            <span className="text-[14px] font-bold text-[#0A2540]">
-                              <Highlight text={displayName(book)} query={searchQuery} />
-                            </span>
-                          </div>
-                          {hasIndicCharacters(displayName(book)) && (
-                            <div className="text-[12px] font-semibold text-neutral-400 mt-1 pl-4 italic tracking-wide">
-                              ({transliterateIndicToEnglish(displayName(book))})
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col justify-center">
-                          <span className="text-[14px] font-bold text-[#0A2540]">
-                            <Highlight text={displayName(book)} query={searchQuery} />
-                          </span>
-                          {hasIndicCharacters(displayName(book)) && (
-                            <div className="text-[12px] font-semibold text-neutral-400 mt-0.5 italic tracking-wide">
-                              ({transliterateIndicToEnglish(displayName(book))})
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      <div className="flex flex-col justify-center">
+                        {isExpanded && <div className="w-1 h-full bg-[#1565FF] rounded-r-md absolute left-0" />}
+                        <span className="text-[14px] font-bold text-[#0A2540]"><Highlight text={displayName(book)} query={searchQuery} /></span>
+                        {hasIndicCharacters(displayName(book)) && (
+                          <div className="text-[12px] font-semibold text-neutral-400 mt-0.5 italic">({transliterateIndicToEnglish(displayName(book))})</div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">{book.part || '-'}</td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
-                      <Highlight text={enrichedBooks[book.id]?.author || book.author || ''} query={searchQuery} />
-                      {!(enrichedBooks[book.id]?.author || book.author) && <span className="text-neutral-300 italic text-[12px]">—</span>}
+                      {enrichedBooks[book.id]?.author || book.author
+                        ? <Highlight text={enrichedBooks[book.id]?.author || book.author} query={searchQuery} />
+                        : <span className="text-neutral-300 italic text-[12px]">—</span>}
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
-                      <Highlight text={enrichedBooks[book.id]?.editor || book.editor || ''} query={searchQuery} />
-                      {!(enrichedBooks[book.id]?.editor || book.editor) && <span className="text-neutral-300 italic text-[12px]">—</span>}
+                      {enrichedBooks[book.id]?.editor || book.editor
+                        ? <Highlight text={enrichedBooks[book.id]?.editor || book.editor} query={searchQuery} />
+                        : <span className="text-neutral-300 italic text-[12px]">—</span>}
                     </td>
                     <td className="px-5 py-4 text-center">
-                      {book.language ? (
-                        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[11px]">
-                          {mapLanguageInitialToFull(book.language)}
-                        </span>
-                      ) : '-'}
+                      {book.language
+                        ? <span className="inline-flex items-center justify-center px-2 py-0.5 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[11px]">{mapLanguageInitialToFull(book.language)}</span>
+                        : '-'}
                     </td>
                     <td className="px-5 py-4 text-[14px] font-medium text-neutral-600">
-                      <Highlight text={enrichedBooks[book.id]?.publisher || book.publisher || ''} query={searchQuery} />
-                      {!(enrichedBooks[book.id]?.publisher || book.publisher) && <span className="text-neutral-300 italic text-[12px]">—</span>}
+                      {enrichedBooks[book.id]?.publisher || book.publisher
+                        ? <Highlight text={enrichedBooks[book.id]?.publisher || book.publisher} query={searchQuery} />
+                        : <span className="text-neutral-300 italic text-[12px]">—</span>}
                     </td>
                   </tr>
-
-                  {/* Desktop Expanded Row */}
                   <AnimatePresence>
                     {isExpanded && (
                       <tr className="bg-[#F8FAFC]">
@@ -288,12 +310,13 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3, ease: 'easeInOut' }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
                           >
+                            <ExpandedNav bookId={book.id} />
                             {isLoading ? (
-                              <div className="flex flex-col items-center justify-center py-10 gap-3 text-neutral-500 font-semibold bg-gradient-to-br from-[#E3F2FD]/20 to-[#E0F7FA]/10">
+                              <div className="flex flex-col items-center justify-center py-10 gap-3 text-neutral-500">
                                 <Loader2 size={32} className="text-[#1565FF] animate-spin" />
-                                <span className="text-[13px] tracking-wide animate-pulse">Decrypting and loading available inventory details...</span>
+                                <span className="text-[13px] animate-pulse">Loading details…</span>
                               </div>
                             ) : details ? (
                               <ExpandedBookDetails book={details} isAdmin={isLoggedIn} />
@@ -313,73 +336,69 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
       </div>
 
       {/* ── MOBILE CARD LIST (< md) ── */}
-      <div className="block md:hidden divide-y divide-neutral-100">
+      {/* overflow-anchor:none prevents browser scroll anchoring jumps */}
+      <div className="block md:hidden divide-y divide-neutral-100" style={{ overflowAnchor: 'none' }}>
         {currentBooks.map((book) => {
           const isExpanded = expandedRowId === book.id;
           const isLoading = loadingIds[book.id];
           const details = detailsCache[book.id];
 
           return (
-            <div
-              key={book.id}
-              ref={el => { rowRefs.current[book.id] = el; }}
-              className={`transition-colors duration-200 ${isExpanded ? 'bg-[#F0F7FF]' : 'bg-white'}`}
-            >
-              {/* Card Header — always visible */}
+            <div key={book.id} className={`transition-colors duration-150 ${isExpanded ? 'bg-[#F0F7FF]' : 'bg-white'}`}>
+
+              {/* Card Header */}
               <div
-                className="flex items-start gap-3 px-4 py-3.5 cursor-pointer active:bg-neutral-50"
+                className="flex items-start gap-2.5 px-3.5 py-3 cursor-pointer active:bg-neutral-50"
                 onClick={() => toggleRow(book.id, book.master_ssid || book.id)}
               >
-                {/* Language + Part badges */}
                 <div className="flex-1 min-w-0">
+                  {/* Badges row */}
                   <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     {book.language && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#00b6be]/15 text-[#0F766E] font-bold text-[10px] uppercase tracking-wider">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#00b6be]/15 text-[#0F766E] font-bold text-[9px] uppercase tracking-wider">
                         {mapLanguageInitialToFull(book.language)}
                       </span>
                     )}
                     {book.part && (
-                      <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Pt. {book.part}</span>
+                      <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider bg-neutral-100 px-1.5 py-0.5 rounded">
+                        Pt.{book.part}
+                      </span>
                     )}
                   </div>
 
-                  {/* Book Name — full wrap, no truncation */}
-                  <p className="text-[14px] font-extrabold text-[#0A2540] leading-snug break-words">
+                  {/* Name — full wrap */}
+                  <p className="text-[13.5px] font-extrabold text-[#0A2540] leading-snug break-words">
                     <Highlight text={displayName(book)} query={searchQuery} />
                   </p>
                   {hasIndicCharacters(displayName(book)) && (
-                    <p className="text-[11px] font-semibold text-neutral-400 mt-0.5 italic break-words">
+                    <p className="text-[10.5px] font-medium text-neutral-400 mt-0.5 italic break-words">
                       ({transliterateIndicToEnglish(displayName(book))})
                     </p>
                   )}
 
-                  {/* Author + Publisher inline — compact */}
-                  <div className="flex flex-wrap gap-x-3 mt-1.5">
+                  {/* Author + Publisher compact */}
+                  <div className="flex flex-wrap gap-x-2.5 mt-1">
                     {(enrichedBooks[book.id]?.author || book.author) && (
-                      <p className="text-[11.5px] text-neutral-500 font-medium">
-                        <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Author</span>
+                      <p className="text-[11px] text-neutral-500">
+                        <span className="text-[8.5px] font-bold text-neutral-400 uppercase tracking-wider mr-0.5">By</span>
                         <Highlight text={enrichedBooks[book.id]?.author || book.author} query={searchQuery} />
                       </p>
                     )}
                     {(enrichedBooks[book.id]?.publisher || book.publisher) && (
-                      <p className="text-[11.5px] text-neutral-500 font-medium">
-                        <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-wider mr-1">Pub.</span>
+                      <p className="text-[11px] text-neutral-400">
+                        <span className="text-[8.5px] font-bold text-neutral-400 uppercase tracking-wider mr-0.5">Pub.</span>
                         <Highlight text={enrichedBooks[book.id]?.publisher || book.publisher} query={searchQuery} />
                       </p>
                     )}
                   </div>
                 </div>
 
-                {/* Expand/Collapse button */}
+                {/* Expand button — compact */}
                 <button
-                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-all shadow-sm ${
-                    isExpanded
-                      ? 'bg-[#1565FF] text-white'
-                      : 'bg-[#00b6be] text-white hover:bg-[#009ca3]'
-                  }`}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-1 transition-all ${isExpanded ? 'bg-[#1565FF] text-white' : 'bg-[#00b6be] text-white'}`}
                   onClick={e => { e.stopPropagation(); toggleRow(book.id, book.master_ssid || book.id); }}
                 >
-                  {isExpanded ? <Minus size={14} strokeWidth={3} /> : <Plus size={14} strokeWidth={3} />}
+                  {isExpanded ? <Minus size={13} strokeWidth={3} /> : <Plus size={13} strokeWidth={3} />}
                 </button>
               </div>
 
@@ -390,18 +409,20 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.28, ease: 'easeInOut' }}
+                    transition={{ duration: 0.22, ease: 'easeInOut' }}
                     className="overflow-hidden border-t border-[#1565FF]/10"
+                    style={{ overflowAnchor: 'none' }}
                   >
+                    <ExpandedNav bookId={book.id} />
                     {isLoading ? (
-                      <div className="flex flex-col items-center justify-center py-8 gap-2 text-neutral-400">
-                        <Loader2 size={26} className="text-[#1565FF] animate-spin" />
-                        <span className="text-[12px] font-semibold animate-pulse">Loading details…</span>
+                      <div className="flex flex-col items-center justify-center py-6 gap-2 text-neutral-400">
+                        <Loader2 size={24} className="text-[#1565FF] animate-spin" />
+                        <span className="text-[11px] font-semibold animate-pulse">Loading…</span>
                       </div>
                     ) : details ? (
                       <ExpandedBookDetails book={details} isAdmin={isLoggedIn} />
                     ) : (
-                      <div className="py-4 text-center text-neutral-400 text-[13px] font-medium">Failed to load details.</div>
+                      <div className="py-4 text-center text-neutral-400 text-[12px]">Failed to load details.</div>
                     )}
                   </motion.div>
                 )}
@@ -413,24 +434,22 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
 
       {/* ── PAGINATION ── */}
       {totalPages > 0 && (
-        <div className="bg-[#F8FAFC] border-t border-neutral-100 px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-[12px] sm:text-[13px] font-bold text-[#0D47A1]">
-            Showing {indexOfFirstItem + 1}–{Math.min(indexOfLastItem, totalItems)} of {totalItems}
+        <div className="bg-[#F8FAFC] border-t border-neutral-100 px-3 py-3 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="text-[11px] sm:text-[13px] font-bold text-[#0D47A1]">
+            {indexOfFirstItem + 1}–{Math.min(indexOfLastItem, totalItems)} of {totalItems}
           </div>
-
-          <div className="flex items-center gap-1.5 overflow-x-auto max-w-full pb-1 sm:pb-0">
+          <div className="flex items-center gap-1 overflow-x-auto max-w-full">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center transition-colors bg-transparent shrink-0 ${currentPage === 1 ? 'text-neutral-300 cursor-not-allowed' : 'text-neutral-500 hover:bg-white hover:text-[#1565FF] hover:border-[#1565FF]/30 cursor-pointer'}`}
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border border-neutral-200 flex items-center justify-center shrink-0 ${currentPage === 1 ? 'text-neutral-300 cursor-not-allowed' : 'text-neutral-500 hover:bg-white hover:text-[#1565FF] cursor-pointer'}`}
             >
-              <ChevronLeft size={16} strokeWidth={2.5} />
+              <ChevronLeft size={14} strokeWidth={2.5} />
             </button>
-
             {getPaginationGroup().map((item, index) => {
               if (item === '...') return (
-                <div key={`dots-${index}`} className="w-8 h-8 flex items-center justify-center text-neutral-400 shrink-0">
-                  <MoreHorizontal size={16} />
+                <div key={`dots-${index}`} className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-neutral-400 shrink-0">
+                  <MoreHorizontal size={13} />
                 </div>
               );
               const isActive = currentPage === item;
@@ -438,23 +457,19 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
                 <button
                   key={item}
                   onClick={() => handlePageChange(item)}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-bold shrink-0 transition-colors cursor-pointer
-                    ${isActive
-                      ? 'bg-[#1565FF] text-white shadow-md border-transparent'
-                      : 'border border-neutral-200 text-neutral-600 hover:bg-white hover:text-[#1565FF] hover:border-[#1565FF]/30 bg-transparent'
-                    }`}
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[11px] sm:text-[13px] font-bold shrink-0 cursor-pointer
+                    ${isActive ? 'bg-[#1565FF] text-white shadow-sm' : 'border border-neutral-200 text-neutral-600 hover:bg-white hover:text-[#1565FF]'}`}
                 >
                   {item}
                 </button>
               );
             })}
-
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className={`w-8 h-8 rounded-lg border border-neutral-200 flex items-center justify-center transition-colors bg-transparent shrink-0 ${currentPage === totalPages ? 'text-neutral-300 cursor-not-allowed' : 'text-neutral-500 hover:bg-white hover:text-[#1565FF] hover:border-[#1565FF]/30 cursor-pointer'}`}
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border border-neutral-200 flex items-center justify-center shrink-0 ${currentPage === totalPages ? 'text-neutral-300 cursor-not-allowed' : 'text-neutral-500 hover:bg-white hover:text-[#1565FF] cursor-pointer'}`}
             >
-              <ChevronRight size={16} strokeWidth={2.5} />
+              <ChevronRight size={14} strokeWidth={2.5} />
             </button>
           </div>
         </div>
