@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, ChevronLeft, ChevronRight, MoreHorizontal, Loader2 } from 'lucide-react';
+import { Plus, Minus, ChevronLeft, ChevronRight, MoreHorizontal, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import ExpandedBookDetails from './ExpandedBookDetails';
 import { decryptAES128 } from '../utils/crypto';
 import { transliterateIndicToEnglish, hasIndicCharacters } from '../utils/transliteration';
+import { useAuth } from '../context/AuthContext';
 
 
 const mapLanguageInitialToFull = (initial) => {
@@ -24,10 +25,20 @@ const mapLanguageInitialToFull = (initial) => {
 };
 
 export default function BookTable({ books }) {
+  const { isLoggedIn } = useAuth();
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [detailsCache, setDetailsCache] = useState({});
   const [loadingIds, setLoadingIds] = useState({});
-  
+
+  // Sort state — default ascending by name
+  const [sortField, setSortField] = useState('name');
+  const [sortDir, setSortDir] = useState('asc');
+
+  const handleSort = (field) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(25);
@@ -37,12 +48,19 @@ export default function BookTable({ books }) {
     setCurrentPage(1);
   }, [books]);
 
-  // Pagination Logic
-  const totalItems = books.length;
+  // Sort + Pagination Logic
+  const sortedBooks = [...books].sort((a, b) => {
+    const av = (a[sortField] || '').toString().toLowerCase();
+    const bv = (b[sortField] || '').toString().toLowerCase();
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  const totalItems = sortedBooks.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentBooks = books.slice(indexOfFirstItem, indexOfLastItem);
+  const currentBooks = sortedBooks.slice(indexOfFirstItem, indexOfLastItem);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -149,13 +167,16 @@ export default function BookTable({ books }) {
         <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-gradient-to-r from-[#1D4ED8] to-[#00b6be] text-white">
-              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap w-[80px]">Expand ↕</th>
-              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap">Name ↕</th>
-              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap">Part ↕</th>
-              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap">Author ↕</th>
-              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap">Editor ↕</th>
-              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap w-[100px] text-center">Language ↕</th>
-              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap">Publisher ↕</th>
+              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap w-[80px]">Expand</th>
+              {[['name','Name'],['part','Part'],['author','Author'],['editor','Editor']].map(([f,label])=>(
+                <th key={f} onClick={()=>handleSort(f)} className="px-5 py-3 text-[13px] font-bold whitespace-nowrap cursor-pointer select-none hover:bg-white/10 transition-colors">
+                  <span className="flex items-center gap-1">{label}{sortField===f?(sortDir==='asc'?<ArrowUp size={12}/>:<ArrowDown size={12}/>):<ArrowUp size={12} className="opacity-30"/>}</span>
+                </th>
+              ))}
+              <th className="px-5 py-3 text-[13px] font-bold whitespace-nowrap w-[100px] text-center">Language</th>
+              <th onClick={()=>handleSort('publisher')} className="px-5 py-3 text-[13px] font-bold whitespace-nowrap cursor-pointer select-none hover:bg-white/10 transition-colors">
+                <span className="flex items-center gap-1">Publisher{sortField==='publisher'?(sortDir==='asc'?<ArrowUp size={12}/>:<ArrowDown size={12}/>):<ArrowUp size={12} className="opacity-30"/>}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -236,7 +257,7 @@ export default function BookTable({ books }) {
                                 <span className="text-[13px] tracking-wide animate-pulse">Decrypting and loading available inventory details...</span>
                               </div>
                             ) : details ? (
-                              <ExpandedBookDetails book={details} />
+                              <ExpandedBookDetails book={details} isAdmin={isLoggedIn} bhandarData={bhandarData} />
                             ) : (
                               <div className="py-6 text-center text-neutral-400 font-medium">Failed to load details.</div>
                             )}

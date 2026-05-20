@@ -56,7 +56,33 @@ export default function AdvanceSearch() {
     fetchCities();
   }, []);
 
-  // Fetch Advanced Search Results
+  const [titleSuggestions, setTitleSuggestions] = useState([]);
+  const [showTitleSuggestions, setShowTitleSuggestions] = useState(false);
+  const titleRef = useRef(null);
+
+  // Title autocomplete from backend
+  useEffect(() => {
+    if (!title || title.length < 2) { setTitleSuggestions([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/front/title_autocomplete?query=${encodeURIComponent(title.trim())}&lang=${activeLang === 'Hindi' ? 'hindi' : 'gujarati'}`);
+        const json = await res.json();
+        if (json && json.data) setTitleSuggestions(json.data.slice(0, 8));
+        else if (Array.isArray(json)) setTitleSuggestions(json.slice(0, 8));
+      } catch(e) { /* silent */ }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [title, activeLang]);
+
+  // Close title suggestions on outside click
+  useEffect(() => {
+    function h(e) {
+      if (titleRef.current && !titleRef.current.contains(e.target)) setShowTitleSuggestions(false);
+    }
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
   const handleSearch = async () => {
     setLoading(true);
     try {
@@ -292,20 +318,45 @@ export default function AdvanceSearch() {
           </div>
 
           {/* Title */}
-          <div className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative overflow-hidden">
+          <div ref={titleRef} className="xl:col-span-1 border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 focus-within:border-neutral-300 focus-within:bg-white transition-all duration-300 rounded-xl px-3 py-1.5 flex flex-col justify-center group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.01)] relative">
             <div className="flex items-center gap-1.5 mb-0.5 text-[#0A2540]/60 group-focus-within:text-[#FF6B00] transition-colors">
               <BookOpen size={13} strokeWidth={2.5} />
               <label className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Title</label>
             </div>
-            <input 
-              type="text" 
-              placeholder="Enter title..." 
+            <input
+              type="text"
+              placeholder="Enter title..."
               value={title}
-              onFocus={() => setFocusedField('title')}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium" 
+              onFocus={() => { setFocusedField('title'); setShowTitleSuggestions(true); }}
+              onChange={(e) => { setTitle(e.target.value); setShowTitleSuggestions(true); }}
+              className="w-full text-[13px] text-neutral-800 font-bold outline-none bg-transparent placeholder:text-neutral-300 placeholder:font-medium"
             />
             <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#FF6B00] to-[#FF9F1C] scale-x-0 group-focus-within:scale-x-100 transition-transform duration-300 origin-left" />
+
+            {/* Title autocomplete dropdown */}
+            <AnimatePresence>
+              {showTitleSuggestions && titleSuggestions.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                  exit={{ opacity: 0, y: -4, scaleY: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 rounded-xl shadow-xl z-50 overflow-hidden"
+                >
+                  {titleSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      onMouseDown={(e) => { e.preventDefault(); setTitle(s); setShowTitleSuggestions(false); }}
+                      className={`w-full text-left px-4 py-2 text-[13px] font-semibold transition-colors cursor-pointer ${
+                        i === 0 ? 'bg-[#012c77]/5 text-[#012c77] font-bold' : 'text-neutral-700 hover:bg-neutral-50'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Author */}
@@ -440,7 +491,7 @@ export default function AdvanceSearch() {
 
         </div>
 
-        {/* Google Input Tools Suggestions */}
+        {/* Google Input Tools Suggestions — pills only, no label */}
         <AnimatePresence>
           {suggestions.length > 0 && focusedField && (
             <motion.div
@@ -449,10 +500,6 @@ export default function AdvanceSearch() {
               exit={{ opacity: 0, height: 0 }}
               className="mt-2 mb-4 flex flex-wrap gap-2 items-center px-4 py-2.5 bg-neutral-50/50 rounded-2xl border border-neutral-100"
             >
-              <span className="text-[12px] font-bold text-neutral-400 mr-1 flex items-center gap-1 shrink-0">
-                <Sparkles size={12} className="text-[#FF6B00] animate-pulse" />
-                Did you mean for {focusedField} ({targetTransLang}):
-              </span>
               {suggestions.map((cand, idx) => (
                 <button
                   key={idx}
