@@ -6,17 +6,35 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+/** Desktop card — keeps icon + truncation-free value */
 const DetailCard = ({ icon: Icon, label, value }) => (
   <div className="bg-white/80 backdrop-blur-md rounded-2xl p-3 sm:p-4 shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-white/60 flex items-start gap-3 sm:gap-4 hover:shadow-[0_8px_24px_rgba(0,182,190,0.1)] transition-all duration-300">
     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center shrink-0 border border-blue-100 shadow-inner">
-      <Icon size={15} className="text-[#0D47A1] sm:size-[18px]" strokeWidth={2.5} />
+      <Icon size={15} className="text-[#0D47A1]" strokeWidth={2.5} />
     </div>
     <div className="flex flex-col min-w-0">
       <span className="text-[9.5px] sm:text-[11px] font-bold text-[#0D47A1] uppercase tracking-wider mb-0.5 sm:mb-1">{label}</span>
-      <span className="text-[12px] sm:text-[13px] font-semibold text-neutral-800 leading-tight truncate">{value || '-'}</span>
+      <span className="text-[12px] sm:text-[13px] font-semibold text-neutral-800 leading-snug break-words">{value || '-'}</span>
     </div>
   </div>
 );
+
+/** Mobile row — single column, no card box, full-width text wraps naturally */
+const MobileRow = ({ icon: Icon, label, value }) => {
+  if (!value || value === '-') return null; // hide empty rows on mobile to save space
+  return (
+    <div className="flex items-start gap-3 py-2.5 border-b border-neutral-100 last:border-0">
+      <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0 mt-0.5">
+        <Icon size={13} className="text-[#0D47A1]" strokeWidth={2.5} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <span className="block text-[10px] font-bold text-[#0D47A1] uppercase tracking-wider mb-0.5">{label}</span>
+        <span className="block text-[13px] font-semibold text-neutral-800 leading-snug break-words whitespace-pre-wrap">{value}</span>
+      </div>
+    </div>
+  );
+};
+
 
 const mapLanguageInitialToFull = (initial) => {
   if (!initial) return '-';
@@ -191,8 +209,8 @@ export default function ExpandedBookDetails({ book, isAdmin }) {
 
         <div className="relative z-10 flex flex-col lg:flex-row gap-5 lg:gap-8">
 
-          {/* Left — Image Slider */}
-          <div className="w-full lg:w-[240px] shrink-0 flex items-center justify-center gap-2 lg:gap-0">
+          {/* Left — Image Slider: hidden on mobile to save space */}
+          <div className="hidden lg:flex w-full lg:w-[240px] shrink-0 items-center justify-center gap-2 lg:gap-0">
             <button className="w-8 h-8 rounded-full bg-[#1E88E5] text-white flex items-center justify-center shadow-lg hover:bg-[#1565C0] transition-colors lg:-mr-4 z-20 shrink-0">
               <ChevronLeft size={18} strokeWidth={2.5} />
             </button>
@@ -220,8 +238,15 @@ export default function ExpandedBookDetails({ book, isAdmin }) {
               <div className="w-12 h-1 bg-gradient-to-r from-[#FF6B00] to-[#FFA726] rounded-full mt-1.5" />
             </div>
 
-            {/* Details Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 mb-6">
+            {/* Mobile: single-column list, no cards, text wraps naturally */}
+            <div className="block sm:hidden bg-white/70 backdrop-blur-md rounded-2xl px-3 py-1 mb-5 border border-white/60 shadow-sm">
+              {details.map((detail, idx) => (
+                <MobileRow key={idx} icon={detail.icon} label={detail.label} value={detail.value} />
+              ))}
+            </div>
+
+            {/* Desktop: card grid */}
+            <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 mb-6">
               {details.map((detail, idx) => (
                 <DetailCard key={idx} icon={detail.icon} label={detail.label} value={detail.value} />
               ))}
