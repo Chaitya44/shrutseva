@@ -3,9 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Languages, MapPin, ChevronDown, RotateCcw, Printer, Search, BookOpen, User, Edit3, Building2, Tag, Info, Loader2, Sparkles } from 'lucide-react';
 import BookTable from '../components/BookTable';
 import { fetchGoogleTransliteration } from '../utils/transliteration';
+import { useAuth } from '../context/AuthContext';
 
 
 export default function AdvanceSearch() {
+  const { bhandarList } = useAuth();
   const [activeLang, setActiveLang] = useState('Gujarati'); // Primary language context
   
   // Advanced Search Field States
@@ -20,12 +22,17 @@ export default function AdvanceSearch() {
   const [focusedField, setFocusedField] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
 
-  
   // Dropdown States
   const [cities, setCities] = useState([]);
   const [activeCity, setActiveCity] = useState('All Cities');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
-  
+
+  // Bhandar filter — null means 'All Bhandars'
+  const [activeBhandar, setActiveBhandar] = useState(null); // { code, label }
+  const [showBhandarDropdown, setShowBhandarDropdown] = useState(false);
+  const [bhandarSearch, setBhandarSearch] = useState('');
+  const bhandarDropdownRef = useRef(null);
+
   const [activeLangDropdown, setActiveLangDropdown] = useState('All');
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   
@@ -38,6 +45,7 @@ export default function AdvanceSearch() {
 
   const cityDropdownRef = useRef(null);
   const langDropdownRef = useRef(null);
+
 
   // Fetch Cities on Mount
   useEffect(() => {
@@ -104,12 +112,25 @@ export default function AdvanceSearch() {
   const handleSearch = async () => {
     setLoading(true);
     try {
-      const cityParam = activeCity === 'All Cities' ? 'all' : activeCity;
       const langParam = activeLangDropdown === 'All' ? '' : activeLangDropdown;
+
+      // Build city/bhandar params:
+      // - bhandar selected → city=my_bhandar + bhandar_code=XXX
+      // - city selected (no bhandar) → city=CityName
+      // - nothing selected → city=all
+      let cityParam = 'all';
+      let bhandarCodeParam = '';
+      if (activeBhandar) {
+        cityParam = 'my_bhandar';
+        bhandarCodeParam = activeBhandar.code;
+      } else if (activeCity !== 'All Cities') {
+        cityParam = activeCity;
+      }
 
       let queryParams = new URLSearchParams({
         client_side: 'true',
         city: cityParam,
+        bhandar_code: bhandarCodeParam,
         title: title.trim(),
         author: author.trim(),
         editor: editor.trim(),
@@ -158,7 +179,7 @@ export default function AdvanceSearch() {
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
       // Only execute if at least one field has content to search
-      if (title || author || editor || publisher || subject || particular || activeCity !== 'All Cities' || activeLangDropdown !== 'All') {
+      if (title || author || editor || publisher || subject || particular || activeCity !== 'All Cities' || activeLangDropdown !== 'All' || activeBhandar) {
         handleSearch();
       } else {
         setBooks([]);
@@ -166,7 +187,7 @@ export default function AdvanceSearch() {
     }, 450);
 
     return () => clearTimeout(debounceTimer);
-  }, [title, author, editor, publisher, subject, particular, activeCity, activeLangDropdown]);
+  }, [title, author, editor, publisher, subject, particular, activeCity, activeLangDropdown, activeBhandar]);
 
   // Live Google Indic Transliteration suggestion fetching for Advance Search fields
   useEffect(() => {
@@ -211,6 +232,8 @@ export default function AdvanceSearch() {
     setSubject('');
     setParticular('');
     setActiveCity('All Cities');
+    setActiveBhandar(null);
+    setBhandarSearch('');
     setActiveLangDropdown('All');
     setBooks([]);
     setSearchInResult('');
@@ -229,6 +252,9 @@ export default function AdvanceSearch() {
       }
       if (langDropdownRef.current && !langDropdownRef.current.contains(event.target)) {
         setShowLangDropdown(false);
+      }
+      if (bhandarDropdownRef.current && !bhandarDropdownRef.current.contains(event.target)) {
+        setShowBhandarDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -330,6 +356,9 @@ export default function AdvanceSearch() {
                       key={idx}
                       onClick={() => {
                         setActiveCity(city);
+                        // Reset bhandar when city changes
+                        setActiveBhandar(null);
+                        setBhandarSearch('');
                         setShowCityDropdown(false);
                       }}
                       className={`w-full text-left px-4 py-2 text-[13px] font-bold cursor-pointer transition-colors ${
@@ -341,6 +370,83 @@ export default function AdvanceSearch() {
                   ))}
                 </motion.div>
               )}
+            </AnimatePresence>
+          </div>
+
+          {/* Bhandar Dropdown */}
+          <div ref={bhandarDropdownRef} className="relative xl:col-span-1">
+            <div
+              onClick={() => setShowBhandarDropdown(!showBhandarDropdown)}
+              className="border border-neutral-200/80 bg-neutral-50/50 backdrop-blur-md hover:bg-neutral-50 hover:border-neutral-300 active:scale-[0.98] transition-all duration-300 rounded-xl px-3 py-1.5 flex justify-between items-center cursor-pointer group shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_2px_4px_rgba(10,37,64,0.02)] h-full overflow-hidden"
+            >
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5 group-hover:text-[#7C3AED] transition-colors">
+                  <Building2 size={13} strokeWidth={2.5} className="text-[#7C3AED]" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider leading-none text-neutral-400">Bhandar</span>
+                </div>
+                <span className={`text-[13px] font-bold truncate ${activeBhandar ? 'text-[#7C3AED]' : 'text-neutral-800'}`}>
+                  {activeBhandar ? activeBhandar.label : 'All Bhandars'}
+                </span>
+              </div>
+              <ChevronDown size={15} className="text-[#0A2540]/60 group-hover:text-[#7C3AED] transition-colors shrink-0 ml-1" />
+              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#7C3AED] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+            </div>
+
+            <AnimatePresence>
+              {showBhandarDropdown && (() => {
+                // Filter bhandars by selected city
+                const filteredBhandars = activeCity === 'All Cities'
+                  ? bhandarList
+                  : bhandarList.filter(b => b.label.toLowerCase().includes(activeCity.toLowerCase()));
+                const searched = bhandarSearch
+                  ? filteredBhandars.filter(b => b.label.toLowerCase().includes(bhandarSearch.toLowerCase()))
+                  : filteredBhandars;
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-xl border border-neutral-100 z-50 overflow-hidden"
+                  >
+                    <div className="px-2 pt-2">
+                      <input
+                        type="text"
+                        placeholder="Search bhandar..."
+                        value={bhandarSearch}
+                        onChange={e => setBhandarSearch(e.target.value)}
+                        autoFocus
+                        className="w-full px-3 py-1.5 text-[12px] rounded-lg border border-neutral-200 focus:border-[#7C3AED] focus:outline-none text-[#0A2540] placeholder-neutral-400 font-medium"
+                      />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto py-2">
+                      {/* All Bhandars option */}
+                      <button
+                        onClick={() => { setActiveBhandar(null); setBhandarSearch(''); setShowBhandarDropdown(false); }}
+                        className={`w-full text-left px-4 py-2 text-[13px] font-bold cursor-pointer transition-colors ${
+                          !activeBhandar ? 'bg-[#7C3AED]/10 text-[#7C3AED]' : 'text-neutral-800 hover:bg-neutral-50'
+                        }`}
+                      >
+                        All Bhandars
+                      </button>
+                      {searched.length === 0 ? (
+                        <div className="px-4 py-3 text-[12px] text-neutral-400">No bhandars found</div>
+                      ) : searched.map((b) => (
+                        <button
+                          key={b.code}
+                          onClick={() => { setActiveBhandar({ code: b.code, label: b.label }); setBhandarSearch(''); setShowBhandarDropdown(false); }}
+                          className={`w-full text-left px-4 py-2 text-[13px] font-bold cursor-pointer transition-colors ${
+                            activeBhandar?.code === b.code ? 'bg-[#7C3AED]/10 text-[#7C3AED]' : 'text-neutral-800 hover:bg-neutral-50'
+                          }`}
+                        >
+                          <div>{b.label}</div>
+                          {b.name && <div className="text-[10px] text-neutral-400 font-medium truncate">{b.name}</div>}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                );
+              })()}
             </AnimatePresence>
           </div>
 
@@ -712,7 +818,7 @@ export default function AdvanceSearch() {
           </div>
         ) : filteredBooks.length > 0 ? (
           <BookTable books={filteredBooks} activeLang={activeLang} searchQuery={title || author || publisher || ''} />
-        ) : title || author || editor || publisher || subject || particular || activeCity !== 'All Cities' ? (
+        ) : title || author || editor || publisher || subject || particular || activeCity !== 'All Cities' || activeBhandar ? (
           <div className="bg-white/80 backdrop-blur-md border border-neutral-200/50 rounded-3xl p-12 text-center shadow-sm">
             <span className="text-[36px]">🔍</span>
             <h3 className="text-[17px] font-extrabold text-[#0A2540] mt-3">No Match Found</h3>
