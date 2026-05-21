@@ -11,7 +11,7 @@ export default function Bhandars() {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch('/get_bhandars_list?userId=1&usertype=1');
+        const res = await fetch('/get_bhandars_list?userId=1&usertype=1&length=-1');
         const json = await res.json();
         if (active) {
           if (json && json.data) setBhandars(json.data);
