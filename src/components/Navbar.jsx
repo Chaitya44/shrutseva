@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Menu, X, LogOut, BookPlus, BarChart2, MapPin, ChevronDown, Check } from 'lucide-react';
+import { User, Menu, X, LogOut, BookPlus, BarChart2, MapPin, ChevronDown, Check, Loader2 } from 'lucide-react';
 import logo from '../assets/logo.png';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -12,11 +12,7 @@ const NAV_LINKS = [
   { label: 'Advance Search', href: '/advance-search' },
   { label: 'Contact',        href: '/contact' },
 ];
-const BHANDAR_OPTIONS = [
-  'Sardar Nagar : Bardoli',
-  'Jawahar Nagar : Surat',
-  'Main Bhandar : Ahmedabad'
-];
+
 
 export default function Navbar() {
   const [scrolled, setScrolled]   = useState(false);
@@ -25,7 +21,8 @@ export default function Navbar() {
   const bhandarRef = useRef(null);
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { isLoggedIn, logout, selectedBhandar, setSelectedBhandar } = useAuth();
+  const { isLoggedIn, logout, selectedBhandar, setSelectedBhandar, bhandarList, bhandarsLoading } = useAuth();
+  const [bhandarSearch, setBhandarSearch] = useState('');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -141,29 +138,53 @@ export default function Navbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.96 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="absolute right-0 mt-2 w-[220px] bg-white/95 backdrop-blur-xl border border-neutral-200 rounded-2xl p-2 shadow-[0_10px_30px_rgba(10,37,64,0.08)] flex flex-col gap-1 z-40 origin-top-right overflow-hidden"
+                    className="absolute right-0 mt-2 w-[280px] bg-white/95 backdrop-blur-xl border border-neutral-200 rounded-2xl shadow-[0_10px_30px_rgba(10,37,64,0.08)] flex flex-col z-40 origin-top-right overflow-hidden"
                   >
-                    <div className="px-3 py-1.5 text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Select Bhandar</div>
-                    {BHANDAR_OPTIONS.map((option) => {
-                      const isSelected = selectedBhandar === option;
-                      return (
-                        <button
-                          key={option}
-                          onClick={() => {
-                            setSelectedBhandar(option);
-                            setBhandarDropdownOpen(false);
-                          }}
-                          className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-[12.5px] font-bold text-left transition-colors cursor-pointer w-full
-                            ${isSelected 
-                              ? 'bg-[#2563EB]/10 text-[#2563EB]' 
-                              : 'text-[#0A2540] hover:bg-neutral-50'
-                            }`}
-                        >
-                          <span className="truncate">{option}</span>
-                          {isSelected && <Check size={14} strokeWidth={3} className="shrink-0" />}
-                        </button>
-                      );
-                    })}
+                    <div className="px-3 pt-3 pb-2 text-[10px] font-bold text-neutral-400 uppercase tracking-wider border-b border-neutral-100">
+                      Select Bhandar ({bhandarList.length})
+                    </div>
+                    <div className="px-2 pt-2">
+                      <input
+                        type="text"
+                        placeholder="Search bhandar..."
+                        value={bhandarSearch}
+                        onChange={e => setBhandarSearch(e.target.value)}
+                        autoFocus
+                        className="w-full px-3 py-1.5 text-[12px] rounded-lg border border-neutral-200 focus:border-[#2563EB] focus:outline-none text-[#0A2540] placeholder-neutral-400 font-medium"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5 p-2 max-h-[240px] overflow-y-auto">
+                      {bhandarsLoading ? (
+                        <div className="flex items-center justify-center py-4 gap-2 text-neutral-400 text-[12px]">
+                          <Loader2 size={14} className="animate-spin" /> Loading...
+                        </div>
+                      ) : bhandarList.filter(b => b.label.toLowerCase().includes(bhandarSearch.toLowerCase())).length === 0 ? (
+                        <div className="py-4 text-center text-[12px] text-neutral-400">No results found</div>
+                      ) : bhandarList.filter(b => b.label.toLowerCase().includes(bhandarSearch.toLowerCase())).map((option) => {
+                        const isSelected = selectedBhandar === option.value;
+                        return (
+                          <button
+                            key={option.code || option.value}
+                            onClick={() => {
+                              setSelectedBhandar(option.value);
+                              setBhandarDropdownOpen(false);
+                              setBhandarSearch('');
+                            }}
+                            className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl text-left transition-colors cursor-pointer w-full
+                              ${isSelected
+                                ? 'bg-[#2563EB]/10 text-[#2563EB]'
+                                : 'text-[#0A2540] hover:bg-neutral-50'
+                              }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[12.5px] font-bold truncate">{option.label}</div>
+                              {option.name && <div className="text-[10px] text-neutral-400 font-medium truncate">{option.name}</div>}
+                            </div>
+                            {isSelected && <Check size={14} strokeWidth={3} className="shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
