@@ -16,14 +16,14 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     async function fetchBhandars() {
       try {
-        const res = await fetch('/get_bhandars_list?userId=1&usertype=1');
+        const res = await fetch('/get_bhandars_list?userId=1&usertype=1&length=-1');
         const json = await res.json();
         if (json && json.data && Array.isArray(json.data)) {
           const options = json.data
-            .filter(b => b.sname && b.city)
+            .filter(b => b.sname || b.bhandar_code)
             .map(b => ({
-              label: `${b.sname} : ${b.city}`,
-              value: `${b.sname} : ${b.city}`,
+              label: `${b.sname || b.bhandar_code}${b.city ? ' : ' + b.city : ''}`,
+              value: `${b.sname || b.bhandar_code}${b.city ? ' : ' + b.city : ''}`,
               code: b.bhandar_code,
               name: b.name,
               area: b.area,
