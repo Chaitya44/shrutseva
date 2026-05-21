@@ -18,7 +18,7 @@ function useDebounce(value, delay) {
 const PAGE_SIZE = 50;
 
 export default function BooksView() {
-  const { selectedBhandar } = useAuth();
+  const { selectedBhandar, bhandarList } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -33,15 +33,20 @@ export default function BooksView() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const bhandar = sanitize(selectedBhandar);
       const title = sanitize(debouncedQuery);
       const start = (page - 1) * PAGE_SIZE;
 
-      // Use server-side pagination: NO client_side=true, pass length+start
+      // Look up the actual bhandar_code from the bhandarList
+      const bhandarEntry = bhandarList.find(b => b.value === selectedBhandar);
+      const bhandarCode = bhandarEntry ? bhandarEntry.code : '';
+
+      // Use my_bhandar filter only if we have a valid code
+      const cityParam = bhandarCode ? 'my_bhandar' : 'all';
+
       const params = new URLSearchParams({
         title,
-        city: 'my_bhandar',
-        bhandar_code: bhandar,
+        city: cityParam,
+        ...(bhandarCode ? { bhandar_code: bhandarCode } : {}),
         length: PAGE_SIZE,
         start,
         draw: page,
@@ -55,7 +60,7 @@ export default function BooksView() {
       }
     } catch(e) { console.error(e); }
     finally { setLoading(false); }
-  }, [selectedBhandar, debouncedQuery, page]);
+  }, [selectedBhandar, bhandarList, debouncedQuery, page]);
 
   useEffect(() => {
     load();
