@@ -11,6 +11,15 @@ export default function Members() {
   const [members, setMembers] = useState([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState('');
+  const [numbers, setNumbers] = useState('');
+  const [issuing, setIssuing] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setMode(params.get('mode') || '');
+    setNumbers(params.get('numbers') || '');
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -26,6 +35,41 @@ export default function Members() {
     load();
     return () => { active = false; };
   }, [selectedBhandar, query]);
+
+  const handleIssue = async (member) => {
+    if (!window.confirm(`Are you sure you want to issue book(s) ${numbers} to ${member.member_name || member.name}?`)) return;
+    setIssuing(true);
+    try {
+      // First, get CSRF token from the login page
+      const pageRes = await fetch('/login', { credentials: 'same-origin' });
+      const htmlText = await pageRes.text();
+      const match = htmlText.match(/<meta name="csrf-token" content="([^"]+)">/);
+      const token = match ? match[1] : '';
+
+      const formData = new URLSearchParams();
+      if (token) formData.append('_token', token);
+      formData.append('mid', member.id || member.mid || member.member_id);
+      formData.append('numbers', numbers);
+      formData.append('notes', 'Issued from new React UI');
+
+      const res = await fetch(`/members_issue`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+      });
+      if (res.ok) {
+        alert('Issue of books to Member Successful!');
+        window.location.href = '/front/quick_search';
+      } else {
+        alert('Failed to issue books. Please try again.');
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      setIssuing(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-[1400px] px-4 sm:px-6 mx-auto pb-8 pt-14 sm:pt-16">
@@ -68,6 +112,7 @@ export default function Members() {
                 <th className="px-5 py-3 font-bold text-left">Mobile</th>
                 <th className="px-5 py-3 font-bold text-left">Address</th>
                 <th className="px-5 py-3 font-bold text-left">Books Issued</th>
+                {mode === 'issue' && <th className="px-5 py-3 font-bold text-right">Action</th>}
               </tr>
             </thead>
             <tbody>
@@ -81,6 +126,17 @@ export default function Members() {
                       {m.books_issued||'0'}
                     </span>
                   </td>
+                  {mode === 'issue' && (
+                    <td className="px-5 py-3.5 text-right">
+                      <button
+                        onClick={() => handleIssue(m)}
+                        disabled={issuing}
+                        className="px-4 py-1.5 rounded-lg text-[12px] font-bold bg-[#FF6B00] text-white disabled:opacity-40 hover:bg-[#e55f00] transition-colors"
+                      >
+                        {issuing ? 'Issuing...' : 'Issue Books'}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

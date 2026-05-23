@@ -17,7 +17,7 @@ export default function CreatedBooks() {
       setLoading(true);
       try {
         const bhandar = sanitize(selectedBhandar);
-        const res = await fetch(`/front/createdbooks?bhandar=${encodeURIComponent(bhandar)}`);
+        const res = await fetch(`/front/createdbooks?bhandar_code=${encodeURIComponent(bhandar)}`);
         const json = await res.json();
         if (active && json && json.data) setData(json.data);
       } catch(e) { console.error(e); }

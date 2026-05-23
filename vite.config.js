@@ -21,6 +21,26 @@ export default defineConfig({
         target: 'https://147.93.155.190/test',
         changeOrigin: true,
         secure: false,
+      },
+      '/members_issue': {
+        target: 'https://147.93.155.190/test',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/login': {
+        target: 'https://147.93.155.190/test',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/front_login': {
+        target: 'https://147.93.155.190/test',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/dashboard': {
+        target: 'https://147.93.155.190/test',
+        changeOrigin: true,
+        secure: false,
       }
     }
   }

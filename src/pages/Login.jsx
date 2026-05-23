@@ -19,7 +19,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     await new Promise(r => setTimeout(r, 800)); // premium UX delay
-    const ok = login(username, password);
+    const ok = await login(username, password);
     setLoading(false);
     if (ok) {
       navigate('/add-book');

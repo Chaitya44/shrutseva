@@ -8,4 +8,4 @@ export const KOOFR_DB_LINK = 'https://app.koofr.net/links/a8a8f005-9837-4d93-b1d
  * 3. Update DB_DATABASE in server .env if schema name changes
  * 4. No frontend code changes needed — API routes remain the same
  */
-export const DB_STATUS = 'pending'; // change to 'active' once imported
+export const DB_STATUS = 'active'; // change to 'active' once imported

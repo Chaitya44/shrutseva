@@ -24,10 +24,9 @@ export default function IssuedBooks() {
         search:      sanitize(keyword),
         issue_from:  sanitize(issueFrom),
         issue_till:  sanitize(issueTill),
-        bhandar:     sanitize(selectedBhandar),
-        client_side: 'true',
+        bhandar_code: sanitize(selectedBhandar),
       });
-      const res  = await fetch(`/front/issued_books?${params}`);
+      const res  = await fetch(`/front/get-bookissue-list?${params}`);
       const json = await res.json();
       if (json && json.data) setData(json.data);
       else setData([]);

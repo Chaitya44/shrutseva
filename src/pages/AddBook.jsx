@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Hash, Type, BookMarked, User, Edit3, Globe, FileText,
   Calendar, Layers, Building2, Tag, StickyNote, Plus, RotateCcw,
-  Info, BookPlus, Printer, Image, Database, ChevronLeft, ChevronRight,
+  Info, BookPlus, Printer, Image as ImageIcon, Database, ChevronLeft, ChevronRight,
   ChevronsLeft, ChevronsRight, Search, Check, Copy
 } from 'lucide-react';
 import BhandarPageSelector from '../components/BhandarPageSelector';
@@ -101,7 +101,8 @@ export default function AddBook() {
     publisher: '',
     subject: '',
     note: '',
-    MasterID: ''
+    MasterID: '',
+    cover: null
   });
 
   const [masterData, setMasterData] = useState([]);
@@ -133,6 +134,12 @@ export default function AddBook() {
     };
   }, [searchQuery, pageSize, currentPage]);
 
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setForm(prev => ({ ...prev, cover: e.target.files[0] }));
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
@@ -154,7 +161,8 @@ export default function AddBook() {
       publisher: '',
       subject: '',
       note: '',
-      MasterID: ''
+      MasterID: '',
+      cover: null
     });
   };
 
@@ -174,14 +182,15 @@ export default function AddBook() {
       publisher: row.publisher || '',
       subject: row.subject || '',
       note: row.particular || '',
-      MasterID: row.id || ''
+      MasterID: row.id || '',
+      cover: null
     });
   };
 
   const handleAddBookSubmit = async (e) => {
     if (e) e.preventDefault();
-    if (!form.name || !form.size || !form.num || !form.lang) {
-      alert("Please fill out the required fields: Name, Size, Number, and Language!");
+    if (!form.name || !form.num) {
+      alert("Please fill out the required fields: Name and Number!");
       return;
     }
 
@@ -189,7 +198,6 @@ export default function AddBook() {
       setSubmitting(true);
       const payload = {
         book_name: form.name,
-        alternate_name: form.alt || '',
         part: form.part || '',
         publisher: form.publisher || '',
         author: form.author || '',
@@ -208,12 +216,24 @@ export default function AddBook() {
         MasterID: form.MasterID || ''
       };
 
+      let bodyData;
+      let headers = { 'X-Requested-With': 'XMLHttpRequest' };
+
+      if (form.cover) {
+        bodyData = new FormData();
+        Object.keys(payload).forEach(key => {
+          bodyData.append(key, payload[key]);
+        });
+        bodyData.append('cover', form.cover);
+      } else {
+        bodyData = JSON.stringify(payload);
+        headers['Content-Type'] = 'application/json';
+      }
+
       const res = await fetch('/api/front/add_book', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
+        headers,
+        body: bodyData
       });
       const json = await res.json();
       if (json.status === true) {
@@ -272,6 +292,17 @@ export default function AddBook() {
           <FieldInput icon={Building2} label="Publisher" name="publisher" value={form.publisher} onChange={handleChange} placeholder="Enter publisher name" />
           <FieldInput icon={Tag} label="Subject" name="subject" value={form.subject} onChange={handleChange} placeholder="Enter subject" />
           <FieldInput icon={StickyNote} label="Bhandar Note" name="note" value={form.note} onChange={handleChange} placeholder="Enter bhandar note" />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] font-bold text-neutral-500 uppercase tracking-wide flex items-center gap-1.5 ml-1">
+              <ImageIcon size={14} className="text-neutral-400" /> Cover Image
+            </label>
+            <input 
+              type="file" 
+              accept="image/*"
+              onChange={handleFileChange}
+              className="w-full text-[13px] text-neutral-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-[13px] file:font-semibold file:bg-blue-50 file:text-[#012c77] hover:file:bg-blue-100 transition-colors bg-white border border-neutral-200 rounded-xl outline-none"
+            />
+          </div>
         </div>
 
         {/* Action Buttons */}

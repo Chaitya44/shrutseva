@@ -54,14 +54,16 @@ function AppContent() {
             backgroundSize: '24px 24px'
           }}
         />
-        <div className="absolute -top-[10%] -right-[5%] w-[60vw] h-[60vw] rounded-full opacity-85 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(37, 99, 235, 0.25) 0%, rgba(59, 130, 246, 0.12) 45%, transparent 70%)' }}
+        {/* Soft Blue Orb at Bottom-Left */}
+        <div 
+          className="absolute -bottom-[20%] -left-[10%] w-[70vw] h-[70vw] rounded-full opacity-[0.25] blur-[140px] animate-float-slow"
+          style={{ background: 'radial-gradient(circle, #2563EB 0%, rgba(37, 99, 235, 0.4) 40%, transparent 70%)' }}
         />
-        <div className="absolute top-[20%] -left-[10%] w-[50vw] h-[50vw] rounded-full opacity-85 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, rgba(29, 78, 216, 0.25) 0%, rgba(37, 99, 235, 0.12) 45%, transparent 70%)' }}
-        />
-        <div className="absolute top-[35%] left-[25%] w-[45vw] h-[45vw] rounded-full opacity-70 blur-[120px]"
-          style={{ background: 'radial-gradient(circle, rgba(14, 165, 233, 0.18) 0%, transparent 70%)' }}
+        
+        {/* Soft Orange Orb at Top-Right */}
+        <div 
+          className="absolute -top-[10%] -right-[5%] w-[50vw] h-[50vw] rounded-full opacity-[0.15] blur-[120px] animate-float-slower"
+          style={{ background: 'radial-gradient(circle, #FB923C 0%, rgba(251, 146, 60, 0.4) 40%, transparent 70%)' }}
         />
         <div className="absolute inset-0 opacity-[0.4] mix-blend-overlay"
           style={{

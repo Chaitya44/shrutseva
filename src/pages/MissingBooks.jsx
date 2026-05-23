@@ -17,7 +17,7 @@ export default function MissingBooks() {
       setLoading(true);
       try {
         const bhandar = sanitize(selectedBhandar);
-        const res = await fetch(`/front/missing_books?bhandar=${encodeURIComponent(bhandar)}`);
+        const res = await fetch(`/front/missing_books?bhandar_code=${encodeURIComponent(bhandar)}`);
         const json = await res.json();
         if (active && json && json.data) setData(json.data);
       } catch(e) { console.error(e); }

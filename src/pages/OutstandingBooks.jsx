@@ -17,7 +17,7 @@ export default function OutstandingBooks() {
       setLoading(true);
       try {
         const bhandar = sanitize(selectedBhandar);
-        const res = await fetch(`/front/outstanding?bhandar=${encodeURIComponent(bhandar)}`);
+        const res = await fetch(`/front/outstanding?bhandar_code=${encodeURIComponent(bhandar)}&json=1`);
         const json = await res.json();
         if (active && json && json.data) setData(json.data);
       } catch(e) { console.error(e); }

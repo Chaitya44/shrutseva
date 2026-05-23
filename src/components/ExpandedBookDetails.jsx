@@ -60,21 +60,75 @@ function BookNumbersModal({ bhandars, onClose }) {
     );
   };
 
-  const doAction = async (type, endpoint) => {
+  const handleDelete = async () => {
     if (!selected.length) return;
-    setActionType(type);
+    if (!window.confirm(`Are you sure you want to delete the selected book(s)?`)) return;
+    setActionType('Delete');
     setActionState('issuing');
     try {
       const ids = selected.join(',');
-      const res = await fetch(`/front/${endpoint}/${encodeURIComponent(ids)}`, {
+      const formData = new URLSearchParams();
+      formData.append('book_numbers', ids);
+
+      const res = await fetch(`/api/front/quick_search_delete`, {
+        method: 'POST',
         credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
       });
-      if (res.ok) setActionState('success');
-      else setActionState('error');
+      if (res.ok) {
+        setActionState('success');
+        // Clear selection after successful action
+        setTimeout(() => { setSelected([]); }, 2000);
+      } else {
+        setActionState('error');
+      }
     } catch (e) {
       setActionState('error');
     }
+  };
+
+  const handleReturn = async () => {
+    if (!selected.length) return;
+    if (!window.confirm(`Are you sure you want to return the selected book(s)?`)) return;
+    setActionType('Return');
+    setActionState('issuing');
+    try {
+      const ids = selected.join(',');
+      const formData = new URLSearchParams();
+      formData.append('book_numbers', ids);
+      // We don't have user_id here but backend might pull it from auth
+
+      const res = await fetch(`/api/returnbooks`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString()
+      });
+      if (res.ok) {
+        setActionState('success');
+        setTimeout(() => { setSelected([]); }, 2000);
+      } else {
+        setActionState('error');
+      }
+    } catch (e) {
+      setActionState('error');
+    }
+  };
+
+  const handleIssue = () => {
+    if (!selected.length) return;
+    const ids = selected.join(',');
+    window.location.href = `/members?mode=issue&numbers=${encodeURIComponent(ids)}`;
+  };
+
+  const handleEdit = () => {
+    if (!selected.length) return;
+    if (selected.length > 1) {
+      alert('Cannot edit multiple books at a time!');
+      return;
+    }
+    window.location.href = `/edit-book?number=${encodeURIComponent(selected[0])}`;
   };
 
   return (
@@ -135,27 +189,29 @@ function BookNumbersModal({ bhandars, onClose }) {
         {/* Action buttons — Return | Issue | Edit | Delete | Close */}
         <div className="flex items-center gap-2 px-5 py-4 border-t border-neutral-100 flex-wrap">
           <button
-            onClick={() => doAction('Return', 'quick_search_return')}
+            onClick={handleReturn}
             disabled={!selected.length || actionState === 'issuing'}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold bg-[#012c77] text-white disabled:opacity-40 hover:bg-[#01237a] transition-colors cursor-pointer shadow-sm"
           >
             <RotateCcw size={13} /> Return
           </button>
           <button
-            onClick={() => doAction('Issue', 'quick_search_issue')}
+            onClick={handleIssue}
             disabled={!selected.length || actionState === 'issuing'}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold bg-[#FF6B00] text-white disabled:opacity-40 hover:bg-[#e55f00] transition-colors cursor-pointer shadow-sm"
           >
             <BookCheck size={13} /> Issue
           </button>
           <button
-            onClick={() => {}}
+            onClick={handleEdit}
+            disabled={!selected.length || actionState === 'issuing'}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold bg-neutral-100 text-neutral-700 hover:bg-neutral-200 transition-colors cursor-pointer"
           >
             <Pencil size={13} /> Edit
           </button>
           <button
-            onClick={() => {}}
+            onClick={handleDelete}
+            disabled={!selected.length || actionState === 'issuing'}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[13px] font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
           >
             <Trash2 size={13} /> Delete

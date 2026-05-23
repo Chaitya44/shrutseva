@@ -17,7 +17,7 @@ export default function DeletedBooks() {
       setLoading(true);
       try {
         const bhandar = sanitize(selectedBhandar);
-        const res = await fetch(`/front/quick_advance_book_search?deleted=1&bhandar=${encodeURIComponent(bhandar)}`);
+        const res = await fetch(`/front/quick_advance_book_search?deleted=1&bhandar_code=${encodeURIComponent(bhandar)}`);
         const json = await res.json();
         if (active && json && json.data) setData(json.data);
       } catch(e) { console.error(e); }
