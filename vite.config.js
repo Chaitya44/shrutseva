@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 const proxyLoginPlugin = () => ({
   name: 'proxy-login',
@@ -81,7 +82,7 @@ const proxyLoginPlugin = () => ({
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), proxyLoginPlugin()],
+  plugins: [react(), tailwindcss(), proxyLoginPlugin()],
   server: {
     proxy: {
       '/get_bhandars_list': {
