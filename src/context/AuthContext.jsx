@@ -74,6 +74,21 @@ export function AuthProvider({ children }) {
       formData.append('password', password);
       formData.append('login', 'frontend');
 
+      // TEMPORARY BACKDOOR FOR UI TESTING
+      if (username.toLowerCase().trim() === 'bardoli' && password === 'bardoli@123') {
+        const user = 'bardoli';
+        sessionStorage.setItem('ss_auth', 'true');
+        sessionStorage.setItem('ss_username', user);
+        setIsLoggedIn(true);
+
+        const matchingBhandar = bhandarList.find(b => b.label.toLowerCase().includes(user));
+        if (matchingBhandar) {
+          setSelectedBhandarState(matchingBhandar.value);
+          sessionStorage.setItem('ss_selected_bhandar', matchingBhandar.value);
+        }
+        return true;
+      }
+
       const res = await fetch('/front_login', {
         method: 'POST',
         credentials: 'same-origin',
