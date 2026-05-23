@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Lock, Eye, EyeOff, ShieldCheck, AlertCircle } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import logo from '../assets/logo.png';
 
@@ -12,7 +11,6 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +20,7 @@ export default function Login() {
     const result = await login(username, password);
     setLoading(false);
     if (result && result.success) {
-      navigate('/add-book');
+      // Navigation is handled inside AuthContext.login()
     } else {
       setError((result && result.message) || 'Invalid credentials. Please try again.');
     }
