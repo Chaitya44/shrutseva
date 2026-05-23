@@ -31,11 +31,13 @@ export default defineConfig({
         target: 'https://147.93.155.190/test',
         changeOrigin: true,
         secure: false,
+        autoRewrite: true,
       },
       '/front_login': {
         target: 'https://147.93.155.190/test',
         changeOrigin: true,
         secure: false,
+        autoRewrite: true,
       },
       '/dashboard': {
         target: 'https://147.93.155.190/test',
