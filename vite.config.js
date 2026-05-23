@@ -90,6 +90,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/front': {
+        target: 'https://www.shrutseva.com/test',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api': {
         target: 'https://www.shrutseva.com/test',
         changeOrigin: true,
