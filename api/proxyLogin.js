@@ -96,8 +96,9 @@ export default async function handler(req, res) {
           (u) => u.username.toLowerCase() === username.toLowerCase()
         );
         if (found) {
-          userId = found.id;
-          console.log("Found userId:", userId);
+          userId    = found.id;
+          user_type = found.user_type || "user";
+          console.log("Found userId:", userId, "user_type:", user_type);
         }
       }
     } catch (e) {
@@ -127,8 +128,6 @@ export default async function handler(req, res) {
             bhandar_label = (b.sname || "") + (b.city ? " : " + b.city : "");
             bhandar_name  = b.name || null;
           }
-          // Also determine user_type: if they can see all bhandars = admin
-          user_type = bhandars.length > 10 ? "admin" : "user";
         }
       } catch (e) {
         console.log("get_bhandars_list error:", e.message);
@@ -137,6 +136,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+      user_id:      userId,
       user_type,
       bhandar_code,
       bhandar_label,

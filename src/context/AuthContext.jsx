@@ -21,71 +21,94 @@ export const AuthProvider = ({ children }) => {
   const [lockedBhandar, setLockedBhandar] = useState(null);
   const navigate = useNavigate();
 
-  // Fetch real bhandars from server on mount
-  useEffect(() => {
-    async function fetchBhandars() {
-      try {
-        const res = await fetch('/get_bhandars_list?userId=1&usertype=1&length=-1');
-        const json = await res.json();
-        if (json && json.data && Array.isArray(json.data)) {
+  // Fetch bhandars — called on mount AND after login
+  const fetchBhandars = React.useCallback(async () => {
+    try {
+      const userType    = sessionStorage.getItem('ss_user_type') || '';
+      const userId      = sessionStorage.getItem('ss_user_id')   || '';
+      const exactCode   = sessionStorage.getItem('ss_bhandar_code') || '';
+      const loggedInUser = sessionStorage.getItem('ss_username') || '';
+
+      // Only admins (user_type === 'admin') see all bhandars
+      const userIsAdmin = userType === 'admin' || loggedInUser === 'admin' || loggedInUser === '';
+
+      let fetchUrl;
+      if (userIsAdmin) {
+        // Admin: fetch ALL bhandars
+        fetchUrl = '/get_bhandars_list?userId=1&usertype=1&length=-1';
+      } else if (userId) {
+        // Regular user: fetch ONLY their bhandar(s)
+        fetchUrl = `/get_bhandars_list?userId=${userId}&usertype=0&length=-1`;
+      } else {
+        // No userId yet — fetch all but will lock by exactCode
+        fetchUrl = '/get_bhandars_list?userId=1&usertype=1&length=-1';
+      }
+
+      const res  = await fetch(fetchUrl);
+      const json = await res.json();
+
+      if (json && json.data && Array.isArray(json.data)) {
+        const mapBhandar = b => ({
+          label: `${b.sname || b.bhandar_code}${b.city ? ' : ' + b.city : ''}`,
+          value: `${b.sname || b.bhandar_code}${b.city ? ' : ' + b.city : ''}`,
+          code:  b.bhandar_code,
+          name:  b.name,
+          area:  b.area,
+          state: b.state,
+        });
+
+        if (userIsAdmin) {
+          // Admin: show all bhandars with an 'All' option
           const allOptions = [
             { label: 'All Bhandars', value: 'All', code: 'ALL', name: 'All Records' },
-            ...json.data
-              .filter(b => b.sname || b.bhandar_code)
-              .map(b => ({
-                label: `${b.sname || b.bhandar_code}${b.city ? ' : ' + b.city : ''}`,
-                value: `${b.sname || b.bhandar_code}${b.city ? ' : ' + b.city : ''}`,
-                code: b.bhandar_code,
-                name: b.name,
-                area: b.area,
-                state: b.state,
-              }))
+            ...json.data.filter(b => b.sname || b.bhandar_code).map(mapBhandar)
           ];
+          setBhandarList(allOptions);
+          const stored = sessionStorage.getItem('ss_bhandar') || sessionStorage.getItem('ss_selected_bhandar');
+          if (!stored && allOptions.length > 0) {
+            setSelectedBhandarState(allOptions[0].value);
+            sessionStorage.setItem('ss_bhandar', allOptions[0].value);
+          }
+        } else {
+          // Non-admin: lock to their specific bhandar(s)
+          let userBhandars = json.data.filter(b => b.sname || b.bhandar_code).map(mapBhandar);
 
-          const loggedInUser = sessionStorage.getItem('ss_username') || '';
-          const userType = sessionStorage.getItem('ss_user_type') || '';
-          const userIsAdmin = userType === 'admin' || userType === 'user' || loggedInUser === 'admin' || loggedInUser === 'user' || loggedInUser === '';
+          // If we fetched all, filter down by exactCode
+          if (!userId && exactCode && exactCode !== '') {
+            const filtered = userBhandars.filter(b => b.code === exactCode);
+            if (filtered.length > 0) userBhandars = filtered;
+          }
 
-          if (userIsAdmin) {
-            // Admin can see and switch ALL bhandars
-            setBhandarList(allOptions);
-            const stored = sessionStorage.getItem('ss_bhandar') || sessionStorage.getItem('ss_selected_bhandar');
-            if (!stored && allOptions.length > 0) {
-              setSelectedBhandarState(allOptions[0].value);
-              sessionStorage.setItem('ss_bhandar', allOptions[0].value);
-            }
+          if (userBhandars.length > 0) {
+            const locked = userBhandars[0];
+            setLockedBhandar(locked);
+            setBhandarList(userBhandars);
+            setSelectedBhandarState(locked.value);
+            sessionStorage.setItem('ss_bhandar', locked.value);
           } else {
-            // Non-admin: use exact bhandar_code returned from server at login
-            const exactCode = sessionStorage.getItem('ss_bhandar_code');
-            let matched = null;
-            if (exactCode) {
-              matched = allOptions.find(b => b.code === exactCode);
-            }
+            // Fallback: fetch all but still lock by exactCode
+            const allRes  = await fetch('/get_bhandars_list?userId=1&usertype=1&length=-1');
+            const allJson = await allRes.json();
+            const allOpts = (allJson.data || []).filter(b => b.sname || b.bhandar_code).map(mapBhandar);
+            const matched = exactCode ? allOpts.find(b => b.code === exactCode) : null;
             if (matched) {
               setLockedBhandar(matched);
               setBhandarList([matched]);
               setSelectedBhandarState(matched.value);
               sessionStorage.setItem('ss_bhandar', matched.value);
-            } else {
-              // No bhandar assigned — show all but don't restrict
-              setBhandarList(allOptions);
-              const stored = sessionStorage.getItem('ss_bhandar');
-              if (!stored && allOptions.length > 0) {
-                setSelectedBhandarState(allOptions[0].value);
-                sessionStorage.setItem('ss_bhandar', allOptions[0].value);
-              }
             }
           }
         }
-      } catch (err) {
-        console.error('Failed to fetch bhandars list:', err);
-      } finally {
-        setBhandarsLoading(false);
-        setLoading(false);
       }
+    } catch (err) {
+      console.error('Failed to fetch bhandars list:', err);
+    } finally {
+      setBhandarsLoading(false);
+      setLoading(false);
     }
-    fetchBhandars();
   }, []);
+
+  useEffect(() => { fetchBhandars(); }, [fetchBhandars]);
 
   const login = async (username, password) => {
     try {
@@ -112,7 +135,14 @@ export const AuthProvider = ({ children }) => {
         sessionStorage.setItem('ss_username', user);
         sessionStorage.setItem('ss_user_type', data.user_type || '');
 
-        // Store exact bhandar_code from the server so we can match precisely
+        // Store userId so fetchBhandars can use userId+usertype=0 for exact lookup
+        if (data.user_id) {
+          sessionStorage.setItem('ss_user_id', data.user_id);
+        } else {
+          sessionStorage.removeItem('ss_user_id');
+        }
+
+        // Store exact bhandar_code as backup
         if (data.bhandar_code) {
           sessionStorage.setItem('ss_bhandar_code', data.bhandar_code);
         } else {
@@ -120,6 +150,8 @@ export const AuthProvider = ({ children }) => {
         }
 
         setIsLoggedIn(true);
+        // Re-fetch bhandars now that user info is stored
+        await fetchBhandars();
         navigate('/add-book');
         return { success: true };
       }
@@ -139,6 +171,7 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.removeItem('ss_auth');
     sessionStorage.removeItem('ss_username');
     sessionStorage.removeItem('ss_user_type');
+    sessionStorage.removeItem('ss_user_id');
     sessionStorage.removeItem('ss_bhandar_code');
     sessionStorage.removeItem('ss_bhandar');
     sessionStorage.removeItem('ss_selected_bhandar');
