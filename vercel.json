@@ -9,14 +9,6 @@
       "destination": "https://www.shrutseva.com/test/api/:path*"
     },
     {
-      "source": "/login",
-      "destination": "https://www.shrutseva.com/test/login"
-    },
-    {
-      "source": "/front_login",
-      "destination": "https://www.shrutseva.com/test/front_login"
-    },
-    {
       "source": "/get_bhandars_list",
       "destination": "https://www.shrutseva.com/test/get_bhandars_list"
     },
