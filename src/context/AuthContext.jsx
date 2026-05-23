@@ -13,6 +13,12 @@ export const AuthProvider = ({ children }) => {
   const [bhandarList, setBhandarList] = useState([]);
   const [bhandarsLoading, setBhandarsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+
+  // Whether the logged-in user is an admin (can switch bhandars)
+  const storedUser = sessionStorage.getItem('ss_username') || '';
+  const isAdmin = storedUser === 'admin' || storedUser === 'user' || storedUser === '';
+  // The bhandar this specific user is locked to (null if admin)
+  const [lockedBhandar, setLockedBhandar] = useState(null);
   const navigate = useNavigate();
 
   // Fetch real bhandars from server on mount
@@ -22,7 +28,7 @@ export const AuthProvider = ({ children }) => {
         const res = await fetch('/get_bhandars_list?userId=1&usertype=1&length=-1');
         const json = await res.json();
         if (json && json.data && Array.isArray(json.data)) {
-          const options = [
+          const allOptions = [
             { label: 'All Bhandars', value: 'All', code: 'ALL', name: 'All Records' },
             ...json.data
               .filter(b => b.sname || b.bhandar_code)
@@ -35,19 +41,34 @@ export const AuthProvider = ({ children }) => {
                 state: b.state,
               }))
           ];
-          setBhandarList(options);
-          
-          // Set a default if nothing saved yet
-          const stored = sessionStorage.getItem('ss_bhandar') || sessionStorage.getItem('ss_selected_bhandar');
-          if (!stored && options.length > 0) {
-            const loggedInUser = sessionStorage.getItem('ss_username');
-            let matched = null;
-            if (loggedInUser && loggedInUser !== 'admin' && loggedInUser !== 'user') {
-              matched = options.find(b => b.label.toLowerCase().includes(loggedInUser));
+
+          const loggedInUser = sessionStorage.getItem('ss_username') || '';
+          const userIsAdmin = loggedInUser === 'admin' || loggedInUser === 'user' || loggedInUser === '';
+
+          if (userIsAdmin) {
+            // Admin can see and switch ALL bhandars
+            setBhandarList(allOptions);
+            const stored = sessionStorage.getItem('ss_bhandar') || sessionStorage.getItem('ss_selected_bhandar');
+            if (!stored && allOptions.length > 0) {
+              setSelectedBhandarState(allOptions[0].value);
+              sessionStorage.setItem('ss_bhandar', allOptions[0].value);
             }
-            const defaultValue = matched ? matched.value : options[0].value;
-            setSelectedBhandarState(defaultValue);
-            sessionStorage.setItem('ss_bhandar', defaultValue);
+          } else {
+            // Non-admin: find their specific bhandar and lock them to it
+            const matched = allOptions.find(b => b.label.toLowerCase().includes(loggedInUser.toLowerCase()));
+            if (matched) {
+              setLockedBhandar(matched);
+              setBhandarList([matched]); // only their bhandar in list
+              setSelectedBhandarState(matched.value);
+              sessionStorage.setItem('ss_bhandar', matched.value);
+            } else {
+              // No match found — show all but lock selection to first non-All
+              const fallback = allOptions[1] || allOptions[0];
+              setLockedBhandar(fallback);
+              setBhandarList([fallback]);
+              setSelectedBhandarState(fallback.value);
+              sessionStorage.setItem('ss_bhandar', fallback.value);
+            }
           }
         }
       } catch (err) {
@@ -83,17 +104,7 @@ export const AuthProvider = ({ children }) => {
         const user = username.toLowerCase().trim();
         sessionStorage.setItem('ss_auth', 'true');
         sessionStorage.setItem('ss_username', user);
-        
         setIsLoggedIn(true);
-        
-        if (user !== 'admin' && user !== 'user' && bhandarList && bhandarList.length > 0) {
-          const matchingBhandar = bhandarList.find(b => b.label.toLowerCase().includes(user));
-          if (matchingBhandar) {
-            setSelectedBhandarState(matchingBhandar.value);
-            sessionStorage.setItem('ss_bhandar', matchingBhandar.value);
-          }
-        }
-        
         navigate('/add-book');
         return { success: true };
       }
@@ -134,6 +145,8 @@ export const AuthProvider = ({ children }) => {
     <AuthContext.Provider value={{
       isLoggedIn,
       isAuthenticated: isLoggedIn, // alias for compatibility
+      isAdmin,
+      lockedBhandar,
       login,
       logout,
       selectedBhandar,

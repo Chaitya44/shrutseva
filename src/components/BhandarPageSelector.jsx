@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, ChevronDown, Check, Loader2 } from 'lucide-react';
+import { MapPin, ChevronDown, Check, Loader2, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function BhandarPageSelector() {
-  const { isLoggedIn, selectedBhandar, setSelectedBhandar, bhandarList, bhandarsLoading } = useAuth();
+  const { isLoggedIn, selectedBhandar, setSelectedBhandar, bhandarList, bhandarsLoading, isAdmin, lockedBhandar } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef(null);
@@ -22,6 +22,20 @@ export default function BhandarPageSelector() {
 
   if (!isLoggedIn) return null;
 
+  // ── Non-admin: show a locked static badge, no dropdown ──────────────
+  if (!isAdmin && lockedBhandar) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-white/95 backdrop-blur-md rounded-full border border-neutral-200 shadow-[inset_0_1px_1px_rgba(255,255,255,0.8),0_4px_12px_rgba(10,37,64,0.03)]">
+        <MapPin size={15} className="text-[#2563EB] shrink-0" strokeWidth={2.5} />
+        <span className="text-[13px] font-heading font-extrabold text-[#0A2540] truncate max-w-[180px]">
+          {lockedBhandar.label}
+        </span>
+        <Lock size={13} className="text-neutral-400 shrink-0" strokeWidth={2.5} />
+      </div>
+    );
+  }
+
+  // ── Admin: full dropdown with all bhandars ───────────────────────────
   const filtered = bhandarList.filter(b =>
     b && b.label && b.label.toLowerCase().includes(search.toLowerCase())
   );

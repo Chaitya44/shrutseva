@@ -312,7 +312,7 @@ export default function AddBook() {
           <ActionBtn label="BOOK INFO"   icon={Info}      color="orange" />
           <ActionBtn label="ADD KRUTI"   icon={Plus}      color="blue"  />
           <ActionBtn label="PRESENT COPY" icon={Printer}  color="teal"  />
-          <ActionBtn label="IMAGE"       icon={Image}     color="orange" />
+          <ActionBtn label="IMAGE"       icon={ImageIcon} color="orange" />
         </div>
       </motion.div>
 
