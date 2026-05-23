@@ -62,30 +62,22 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      // 1. Fetch CSRF token from the login page via proxied GET
-      const pageRes = await fetch('/login', { credentials: 'same-origin' });
-      const htmlText = await pageRes.text();
-      const match = htmlText.match(/<meta name="csrf-token" content="([^"]+)">/);
-      const token = match ? match[1] : '';
-
-      const formData = new URLSearchParams();
-      if (token) formData.append('_token', token);
-      formData.append('username', username);
-      formData.append('password', password);
-      formData.append('login', 'frontend');
-
-      // 2. Submit credentials via proxied POST
-      const res = await fetch('/front_login', {
+      const res = await fetch('/api/proxyLogin', {
         method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString()
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
       });
 
-      console.log('Login Response Status:', res.status, 'Final URL:', res.url);
+      console.log('Login Response Status:', res.status);
+      
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (e) {
+        console.error('Failed to parse JSON', e);
+      }
 
-      // Backend redirects on success to dashboard
-      if (res.ok && res.url && res.url.includes('/dashboard')) {
+      if (res.ok && data.success) {
         const user = username.toLowerCase().trim();
         sessionStorage.setItem('ss_auth', 'true');
         sessionStorage.setItem('ss_username', user);
