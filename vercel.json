@@ -1,32 +1,24 @@
 {
   "rewrites": [
     {
-      "source": "/front/:path*",
-      "destination": "https://147.93.155.190/test/front/:path*"
+      "source": "/api/:path*",
+      "destination": "https://www.shrutseva.com/test/api/:path*"
     },
     {
-      "source": "/api/:path*",
-      "destination": "https://147.93.155.190/test/api/:path*"
+      "source": "/login",
+      "destination": "https://www.shrutseva.com/test/login"
+    },
+    {
+      "source": "/front_login",
+      "destination": "https://www.shrutseva.com/test/front_login"
     },
     {
       "source": "/get_bhandars_list",
-      "destination": "https://147.93.155.190/test/get_bhandars_list"
+      "destination": "https://www.shrutseva.com/test/get_bhandars_list"
     },
     {
-      "source": "/title-autocomplete",
-      "destination": "https://147.93.155.190/test/title-autocomplete"
-    },
-    {
-      "source": "/publisher-autocomplete",
-      "destination": "https://147.93.155.190/test/publisher-autocomplete"
-    },
-    {
-      "source": "/editor-autocomplete",
-      "destination": "https://147.93.155.190/test/editor-autocomplete"
-    },
-    {
-      "source": "/topic-autocomplete",
-      "destination": "https://147.93.155.190/test/topic-autocomplete"
+      "source": "/front/:path*",
+      "destination": "https://www.shrutseva.com/test/front/:path*"
     },
     {
       "source": "/(.*)",
