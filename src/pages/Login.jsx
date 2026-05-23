@@ -19,12 +19,12 @@ export default function Login() {
     setError('');
     setLoading(true);
     await new Promise(r => setTimeout(r, 800)); // premium UX delay
-    const ok = await login(username, password);
+    const result = await login(username, password);
     setLoading(false);
-    if (ok) {
+    if (result && result.success) {
       navigate('/add-book');
     } else {
-      setError('Invalid credentials. Please try again.');
+      setError((result && result.message) || 'Invalid credentials. Please try again.');
     }
   };
 

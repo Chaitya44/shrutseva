@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/proxyLogin",
+      "destination": "/api/proxyLogin"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://www.shrutseva.com/test/api/:path*"
     },

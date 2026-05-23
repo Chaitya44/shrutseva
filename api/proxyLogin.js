@@ -4,63 +4,100 @@ export default async function handler(req, res) {
   }
 
   try {
-    const loginRes = await fetch("https://www.shrutseva.com/test/login");
-    const html = await loginRes.text();
-    const tokenMatch = html.match(/<meta name="csrf-token" content="([^"]+)">/);
-    const token = tokenMatch ? tokenMatch[1] : "";
-    
-    // Parse cookies robustly
-    const rawCookies = loginRes.headers.get("set-cookie");
-    let cookieStr = "";
-    if (rawCookies) {
-      // Split by comma, but be careful not to split inside dates (like "Thu, 01 Jan 1970")
-      // A safe way is to regex match all set-cookie header parts
-      // But fetch API merges them into one string with commas.
-      // Laravel cookies usually look like: XSRF-TOKEN=val; expires=..., laravel_session=val; expires=...
-      const parts = rawCookies.split(/, (?=[A-Za-z0-9_-]+=)/);
-      const parsed = [];
-      for (const part of parts) {
-        const match = part.match(/^([^=]+)=([^;]+)/);
-        if (match) {
-          parsed.push(match[1] + "=" + match[2]);
-        }
+    const BASE_URL = "https://www.shrutseva.com/test";
+
+    // Step 1: GET the login page to fetch CSRF token and session cookie
+    const loginPageRes = await fetch(`${BASE_URL}/login`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       }
-      cookieStr = parsed.join("; ");
+    });
+
+    const html = await loginPageRes.text();
+
+    // Extract CSRF token from meta tag
+    const tokenMatch = html.match(/name="csrf-token" content="([^"]+)"/);
+    const token = tokenMatch ? tokenMatch[1] : "";
+
+    if (!token) {
+      console.error("Could not extract CSRF token from login page");
+      return res.status(500).json({ success: false, message: "Could not get CSRF token" });
     }
 
-    const { username, password } = req.body;
-    const params = new URLSearchParams();
-    params.append("_token", token);
-    params.append("username", username);
-    params.append("password", password);
-    params.append("login", "frontend");
+    // Extract session cookies from the GET response
+    const setCookieHeader = loginPageRes.headers.get("set-cookie");
+    let sessionCookie = "";
+    if (setCookieHeader) {
+      // Parse all cookies, extract name=value pairs
+      const cookies = [];
+      // set-cookie header is combined with ", " between different cookies in node-fetch
+      // Split on pattern: ", cookieName=" where cookieName starts a new cookie
+      const cookieParts = setCookieHeader.split(/,\s*(?=[A-Za-z0-9_\-]+=)/);
+      for (const part of cookieParts) {
+        const match = part.match(/^([^=\s]+)=([^;]*)/);
+        if (match) {
+          cookies.push(`${match[1]}=${match[2]}`);
+        }
+      }
+      sessionCookie = cookies.join("; ");
+    }
 
-    const postRes = await fetch("https://www.shrutseva.com/test/front_login", {
+    console.log("CSRF Token:", token);
+    console.log("Session Cookie:", sessionCookie);
+
+    // Step 2: POST credentials to front_login
+    const { username, password } = req.body;
+
+    const formData = new URLSearchParams();
+    formData.append("_token", token);
+    formData.append("username", username);
+    formData.append("password", password);
+    formData.append("login", "frontend");
+
+    const postRes = await fetch(`${BASE_URL}/front_login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Cookie": cookieStr,
-        "X-Requested-With": "XMLHttpRequest"
+        "Cookie": sessionCookie,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Referer": `${BASE_URL}/login`,
+        "Origin": "https://www.shrutseva.com",
       },
-      body: params,
-      redirect: "manual"
+      body: formData.toString(),
+      redirect: "manual", // Don't follow redirects automatically
     });
 
-    const location = postRes.headers.get("location");
-    const newCookies = postRes.headers.get("set-cookie") || rawCookies;
+    const responseStatus = postRes.status;
+    const location = postRes.headers.get("location") || "";
+    const responseCookies = postRes.headers.get("set-cookie") || "";
 
-    if (postRes.status === 302 && location && location.includes("/dashboard")) {
-      if (newCookies) {
-        // Split set-cookie properly for multiple headers
-        const parts = newCookies.split(/, (?=[A-Za-z0-9_-]+=)/);
-        res.setHeader("Set-Cookie", parts);
-      }
+    console.log("POST Response Status:", responseStatus);
+    console.log("Location:", location);
+    console.log("Response Cookies:", responseCookies);
+
+    // Success: Laravel redirects away from /login (usually to /dashboard or home)
+    // Failure: Laravel redirects back to /login
+    if (responseStatus === 302 && location && !location.includes("/login")) {
+      // Success - user is authenticated
       return res.status(200).json({ success: true, redirect: location });
+    } else if (responseStatus === 302 && location && location.includes("/login")) {
+      // Redirected back to login = bad credentials
+      return res.status(401).json({ success: false, message: "Invalid credentials. Please try again." });
+    } else if (responseStatus === 200) {
+      // If 200 returned, it likely means the form was shown again (failed login)
+      const responseText = await postRes.text();
+      if (responseText.includes("error") || responseText.includes("invalid") || responseText.includes("credentials")) {
+        return res.status(401).json({ success: false, message: "Invalid credentials. Please try again." });
+      }
+      // Unexpected 200 - treat as success if no error indicators
+      return res.status(200).json({ success: true });
     } else {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Login failed. Status: " + responseStatus });
     }
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ success: false, message: "Internal server error" });
+    console.error("proxyLogin error:", err);
+    return res.status(500).json({ success: false, message: "Server error: " + err.message });
   }
 }

@@ -77,6 +77,8 @@ export const AuthProvider = ({ children }) => {
         console.error('Failed to parse JSON', e);
       }
 
+      console.log('Login Response Data:', data);
+
       if (res.ok && data.success) {
         const user = username.toLowerCase().trim();
         sessionStorage.setItem('ss_auth', 'true');
@@ -93,12 +95,12 @@ export const AuthProvider = ({ children }) => {
         }
         
         navigate('/add-book');
-        return true;
+        return { success: true };
       }
-      return false;
+      return { success: false, message: data.message || 'Invalid credentials. Please try again.' };
     } catch (error) {
       console.error('Login failed:', error);
-      return false;
+      return { success: false, message: 'Network error. Please check your connection.' };
     }
   };
 
