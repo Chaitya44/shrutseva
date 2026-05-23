@@ -43,7 +43,8 @@ export const AuthProvider = ({ children }) => {
           ];
 
           const loggedInUser = sessionStorage.getItem('ss_username') || '';
-          const userIsAdmin = loggedInUser === 'admin' || loggedInUser === 'user' || loggedInUser === '';
+          const userType = sessionStorage.getItem('ss_user_type') || '';
+          const userIsAdmin = userType === 'admin' || userType === 'user' || loggedInUser === 'admin' || loggedInUser === 'user' || loggedInUser === '';
 
           if (userIsAdmin) {
             // Admin can see and switch ALL bhandars
@@ -54,20 +55,25 @@ export const AuthProvider = ({ children }) => {
               sessionStorage.setItem('ss_bhandar', allOptions[0].value);
             }
           } else {
-            // Non-admin: find their specific bhandar and lock them to it
-            const matched = allOptions.find(b => b.label.toLowerCase().includes(loggedInUser.toLowerCase()));
+            // Non-admin: use exact bhandar_code returned from server at login
+            const exactCode = sessionStorage.getItem('ss_bhandar_code');
+            let matched = null;
+            if (exactCode) {
+              matched = allOptions.find(b => b.code === exactCode);
+            }
             if (matched) {
               setLockedBhandar(matched);
-              setBhandarList([matched]); // only their bhandar in list
+              setBhandarList([matched]);
               setSelectedBhandarState(matched.value);
               sessionStorage.setItem('ss_bhandar', matched.value);
             } else {
-              // No match found — show all but lock selection to first non-All
-              const fallback = allOptions[1] || allOptions[0];
-              setLockedBhandar(fallback);
-              setBhandarList([fallback]);
-              setSelectedBhandarState(fallback.value);
-              sessionStorage.setItem('ss_bhandar', fallback.value);
+              // No bhandar assigned — show all but don't restrict
+              setBhandarList(allOptions);
+              const stored = sessionStorage.getItem('ss_bhandar');
+              if (!stored && allOptions.length > 0) {
+                setSelectedBhandarState(allOptions[0].value);
+                sessionStorage.setItem('ss_bhandar', allOptions[0].value);
+              }
             }
           }
         }
@@ -104,6 +110,15 @@ export const AuthProvider = ({ children }) => {
         const user = username.toLowerCase().trim();
         sessionStorage.setItem('ss_auth', 'true');
         sessionStorage.setItem('ss_username', user);
+        sessionStorage.setItem('ss_user_type', data.user_type || '');
+
+        // Store exact bhandar_code from the server so we can match precisely
+        if (data.bhandar_code) {
+          sessionStorage.setItem('ss_bhandar_code', data.bhandar_code);
+        } else {
+          sessionStorage.removeItem('ss_bhandar_code');
+        }
+
         setIsLoggedIn(true);
         navigate('/add-book');
         return { success: true };
@@ -123,6 +138,8 @@ export const AuthProvider = ({ children }) => {
     }
     sessionStorage.removeItem('ss_auth');
     sessionStorage.removeItem('ss_username');
+    sessionStorage.removeItem('ss_user_type');
+    sessionStorage.removeItem('ss_bhandar_code');
     sessionStorage.removeItem('ss_bhandar');
     sessionStorage.removeItem('ss_selected_bhandar');
     setIsLoggedIn(false);
