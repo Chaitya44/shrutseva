@@ -26,9 +26,9 @@ export default function Members() {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`/front/member_autocomplete?query=${encodeURIComponent(sanitize(query))}&bhandar=${encodeURIComponent(sanitize(selectedBhandar))}`);
+        const res = await fetch(`/front/member_list?bhandar_code=${encodeURIComponent(sanitize(selectedBhandar))}&m_search=${encodeURIComponent(sanitize(query))}`);
         const json = await res.json();
-        if (active && json && json.data) setMembers(json.data);
+        if (active && json && Array.isArray(json.data)) setMembers(json.data);
       } catch(e) { console.error(e); }
       finally { if(active) setLoading(false); }
     }

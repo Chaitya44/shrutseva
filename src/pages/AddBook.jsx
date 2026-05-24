@@ -111,6 +111,28 @@ export default function AddBook() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [sizes, setSizes] = useState([]);
+  const [langs, setLangs] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchLangs = async () => {
+      try {
+        const res = await fetch('/api/front/lang_autocomplete');
+        const json = await res.json();
+        if (active && Array.isArray(json)) {
+          setLangs(json);
+        } else if (active && json && Array.isArray(json.items)) {
+          setLangs(json.items);
+        }
+      } catch (err) {
+        console.error("Failed to fetch languages:", err);
+      }
+    };
+    fetchLangs();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!selectedBhandar) return;
@@ -306,7 +328,7 @@ export default function AddBook() {
           <FieldInput icon={BookMarked} label="Book Part" name="part" value={form.part} onChange={handleChange} placeholder="Enter book part" />
           <FieldInput icon={User} label="Author" name="author" value={form.author} onChange={handleChange} placeholder="Enter author name" />
           <FieldInput icon={Edit3} label="Editor" name="editor" value={form.editor} onChange={handleChange} placeholder="Enter editor name" />
-          <SelectField icon={Globe} label="Language" name="lang" value={form.lang} onChange={handleChange} options={['Select language', 'Hindi', 'Gujarati', 'English', 'Sanskrit']} />
+          <SelectField icon={Globe} label="Language" name="lang" value={form.lang} onChange={handleChange} options={['Select language', ...langs]} />
           <FieldInput icon={FileText} label="Pages" name="pages" value={form.pages} onChange={handleChange} placeholder="No. of pages" type="number" />
           <SelectField icon={Calendar} label="Year Type" name="yearType" value={form.yearType} onChange={handleChange} options={['Select type', 'VS', 'AD', 'BS']} />
           <SelectField icon={Calendar} label="Year" name="year" value={form.year} onChange={handleChange} options={['Select year', ...Array.from({length:50},(_,i)=>`${2024-i}`)]} />
