@@ -134,6 +134,38 @@ export default async function handler(req, res) {
       }
     }
 
+    // Collect all Set-Cookie headers from both responses to pass back to the client
+    const allSetCookies = [];
+    const getCookiesFromRes = (response) => {
+      if (response.headers && typeof response.headers.getSetCookie === 'function') {
+        return response.headers.getSetCookie();
+      }
+      const raw = response.headers ? response.headers.get("set-cookie") : null;
+      if (raw) {
+        // Fallback for environments where getSetCookie is not supported
+        return raw.split(/,(?=[A-Za-z0-9_-]+=)/);
+      }
+      return [];
+    };
+
+    allSetCookies.push(...getCookiesFromRes(loginPageRes));
+    allSetCookies.push(...getCookiesFromRes(loginRes));
+
+    const cleanedCookies = allSetCookies.map(cookieStr => {
+      // Remove any explicit Domain attribute so the browser assigns it to the current host (vercel or localhost)
+      let cleaned = cookieStr.replace(/;\s*domain=[^;]+/gi, '');
+      // Strip secure flag if running on HTTP (localhost/127.0.0.1)
+      const host = req.headers.host || '';
+      if (host.includes('localhost') || host.includes('127.0.0.1')) {
+        cleaned = cleaned.replace(/;\s*secure/gi, '');
+      }
+      return cleaned;
+    });
+
+    if (cleanedCookies.length > 0) {
+      res.setHeader('Set-Cookie', cleanedCookies);
+    }
+
     return res.status(200).json({
       success: true,
       user_id:      userId,
@@ -142,6 +174,7 @@ export default async function handler(req, res) {
       bhandar_label,
       bhandar_name,
     });
+
 
   } catch (err) {
     console.error("proxyLogin error:", err);

@@ -36,10 +36,11 @@ export default function QuickSearch() {
   }, []);
 
   // Fetch Books dynamically based on Query, Language, and City
+  // Runs BOTH quick_book_search (name/alternate) AND quick_advance_book_search (Kruti)
+  // in parallel, then merges deduplicated results so Kruti name searches always work.
   useEffect(() => {
     let active = true;
     const delayDebounce = setTimeout(async () => {
-      // If query is empty, we don't need to load or can load all
       if (!searchQuery.trim()) {
         setBooks([]);
         return;
@@ -47,29 +48,75 @@ export default function QuickSearch() {
 
       setLoading(true);
       try {
-        const endpoint = activeLang === 'Hindi' 
-          ? '/front/quick_hindi_book_search' 
-          : '/front/quick_book_search';
-          
+        const isHindi = activeLang === 'Hindi';
+        const quickEndpoint = isHindi ? '/front/quick_hindi_book_search' : '/front/quick_book_search';
+        const advanceEndpoint = isHindi ? '/front/quick_advance_hindi_book_search' : '/front/quick_advance_book_search';
         const cityParam = activeCity === 'All Cities' ? 'all' : activeCity;
-        const url = `${endpoint}?quick_search=${encodeURIComponent(searchQuery)}&city=${encodeURIComponent(cityParam)}&client_side=true`;
 
-        const res = await fetch(url);
-        const json = await res.json();
-        
-        if (active && json && json.data) {
-          const mapped = json.data.map(item => ({
-            id: item.master_ssid,
-            master_ssid: item.master_ssid,
-            name: item.book_name,
-            part: item.part,
-            author: item.author,
-            editor: item.editor,
-            language: item.lang_name,
-            publisher: item.publisher
-          }));
-          setBooks(mapped);
+        // Run both searches in parallel:
+        // 1) Quick search — matches book_name_common, alternate_name_common, Kruti_common
+        // 2) Advance search with kruti param — correctly fetches from separate `kruti` table
+        const [quickRes, krutiRes] = await Promise.allSettled([
+          fetch(`${quickEndpoint}?quick_search=${encodeURIComponent(searchQuery)}&city=${encodeURIComponent(cityParam)}&client_side=true`),
+          fetch(`${advanceEndpoint}?client_side=true&city=${encodeURIComponent(cityParam)}&title=&author=&kruti=${encodeURIComponent(searchQuery)}&lang_name=&subject=&perticular=`)
+        ]);
+
+        if (!active) return;
+
+        const mapQuick = (item) => ({
+          id: item.master_ssid,
+          master_ssid: item.master_ssid,
+          name: item.book_name,
+          part: item.part,
+          author: item.author || '',
+          editor: item.editor || '',
+          language: item.lang_name || '',
+          publisher: item.publisher || '',
+          kruti: item.Kruti || ''
+        });
+
+        const mapAdvance = (item) => ({
+          id: item.master_ssid,
+          master_ssid: item.master_ssid,
+          name: item.book_name,
+          part: item.part,
+          author: item.author || '',
+          editor: item.editor || '',
+          language: item.lang_name || '',
+          publisher: item.publisher || '',
+          kruti: item.Kruti || ''
+        });
+
+        const seenIds = new Set();
+        const merged = [];
+
+        // Add quick search results first
+        if (quickRes.status === 'fulfilled') {
+          const json = await quickRes.value.json().catch(() => null);
+          if (json?.data) {
+            for (const item of json.data) {
+              if (!seenIds.has(item.master_ssid)) {
+                seenIds.add(item.master_ssid);
+                merged.push(mapQuick(item));
+              }
+            }
+          }
         }
+
+        // Add Kruti-specific advance search results (deduplicated)
+        if (krutiRes.status === 'fulfilled') {
+          const json = await krutiRes.value.json().catch(() => null);
+          if (json?.data) {
+            for (const item of json.data) {
+              if (!seenIds.has(item.master_ssid)) {
+                seenIds.add(item.master_ssid);
+                merged.push(mapAdvance(item));
+              }
+            }
+          }
+        }
+
+        setBooks(merged);
       } catch (err) {
         console.error("Failed to search books:", err);
       } finally {
