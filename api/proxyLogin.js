@@ -11,31 +11,6 @@ export default async function handler(req, res) {
   const BASE = "https://www.shrutseva.com/test";
 
   try {
-    // ── Step 0: Validate credentials with /react_login ──────────────────
-    const reactLoginUrl = `${BASE}/react_login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-    const reactLoginRes = await fetch(reactLoginUrl, {
-      headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" }
-    });
-
-    if (!reactLoginRes.ok) {
-      let errorMsg = "Invalid credentials. Please try again.";
-      try {
-        const errJson = await reactLoginRes.json();
-        if (errJson && errJson.message) errorMsg = errJson.message;
-      } catch (_) {}
-      return res.status(401).json({ success: false, message: errorMsg });
-    }
-
-    const reactLoginData = await reactLoginRes.json();
-    if (!reactLoginData || !reactLoginData.success) {
-      return res.status(401).json({ success: false, message: reactLoginData?.message || "Invalid credentials." });
-    }
-
-    const dbUserType     = reactLoginData.user_type || null;
-    const dbBhandarCode  = reactLoginData.bhandar_code || null;
-    const dbBhandarLabel = reactLoginData.bhandar_label || null;
-    const dbBhandarName  = reactLoginData.bhandar_name || null;
-
     // ── Step 1: Get CSRF token from login page ──────────────────────────
     const loginPageRes = await fetch(`${BASE}/accounts/login`, {
       headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html" },
@@ -46,7 +21,7 @@ export default async function handler(req, res) {
     const cookies = extractCookies(loginPageRes.headers.get("set-cookie") || "");
 
     if (!csrfToken) {
-      return res.status(500).json({ success: false, message: "Could not get CSRF token." });
+      return res.status(500).json({ success: false, message: "Could not get CSRF token from live server." });
     }
 
     // ── Step 2: POST to /front_login ────────────────────────────────────
@@ -77,15 +52,21 @@ export default async function handler(req, res) {
 
     console.log("front_login status:", status, "location:", location);
 
-    // ── Step 3: Get bhandar via get_bhandars_list with session cookie ───
-    // We know the user is now logged in. We need their userId.
-    // get_bhandars_list is public (no auth needed) but we need userId.
-    // We'll fetch the dashboard page to extract the user id from it,
-    // OR call get_user_list (requires auth) with the session cookie.
-    let bhandar_code = dbBhandarCode, bhandar_label = dbBhandarLabel, bhandar_name = dbBhandarName, user_type = dbUserType, userId = null;
+    // Validate login success:
+    // If credentials are bad, Laravel redirects back to /login or accounts/login.
+    const isFailure = 
+      (status === 302 && (location.includes("/login") || location.includes("accounts/login"))) ||
+      status === 401 ||
+      (status === 200 && location === "");
 
+    if (isFailure) {
+      return res.status(401).json({ success: false, message: "Invalid credentials. Please try again." });
+    }
 
-    // Try get_user_list (requires auth session)
+    // ── Step 3: Get user information and Bhandar locks ──────────────────
+    let bhandar_code = null, bhandar_label = null, bhandar_name = null, user_type = "user", userId = null;
+
+    // Fetch the user ID by searching for their username in /get_user_list
     try {
       const userListRes = await fetch(
         `${BASE}/get_user_list?search_value=${encodeURIComponent(username)}&length=5`,
@@ -104,8 +85,9 @@ export default async function handler(req, res) {
           (u) => u.username.toLowerCase() === username.toLowerCase()
         );
         if (found) {
-          userId    = found.id;
-          user_type = found.user_type || "user";
+          userId = found.id;
+          // Set user_type based on whether the username matches 'admin' or if they are admin
+          user_type = username.toLowerCase().trim() === 'admin' ? 'admin' : 'user';
           console.log("Found userId:", userId, "user_type:", user_type);
         }
       }
@@ -113,10 +95,11 @@ export default async function handler(req, res) {
       console.log("get_user_list error:", e.message);
     }
 
-    // Now call get_bhandars_list with userId and usertype=0 to get THIS user's bhandar
+    // Fetch Bhandars assigned to the user
     if (userId) {
       try {
-        const bRes = await fetch(
+        // 1) Try usertype=0 (regular locked user)
+        let bRes = await fetch(
           `${BASE}/get_bhandars_list?userId=${userId}&usertype=0&length=-1`,
           {
             headers: {
@@ -129,18 +112,40 @@ export default async function handler(req, res) {
         if (bRes.ok) {
           const bd = await bRes.json();
           const bhandars = bd.data || [];
-          console.log("bhandars for user:", JSON.stringify(bhandars));
+          console.log("get_bhandars_list (usertype=0) count:", bhandars.length);
+          
           if (bhandars.length > 0) {
             const b = bhandars[0];
             bhandar_code  = b.bhandar_code;
             bhandar_label = (b.sname || "") + (b.city ? " : " + b.city : "");
             bhandar_name  = b.name || null;
+            user_type     = "user"; // Lock to this bhandar
+          } else {
+            // 2) If usertype=0 was empty, check if usertype=1 (admin) returns list
+            const bResAdmin = await fetch(
+              `${BASE}/get_bhandars_list?userId=${userId}&usertype=1&length=-1`,
+              {
+                headers: {
+                  Accept: "application/json",
+                  Cookie: newCookies,
+                  "User-Agent": "Mozilla/5.0",
+                },
+              }
+            );
+            if (bResAdmin.ok) {
+              const bdAdmin = await bResAdmin.json();
+              const bhandarsAdmin = bdAdmin.data || [];
+              if (bhandarsAdmin.length > 0) {
+                user_type = "admin"; // Unlocked admin user
+              }
+            }
           }
         }
       } catch (e) {
         console.log("get_bhandars_list error:", e.message);
       }
     }
+
 
     // Collect all Set-Cookie headers from both responses to pass back to the client
     const allSetCookies = [];
