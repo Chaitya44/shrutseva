@@ -53,15 +53,13 @@ export default async function handler(req, res) {
     console.log("front_login status:", status, "location:", location);
 
     // Validate login success:
-    // If credentials are bad, Laravel redirects back to /login or accounts/login.
-    const isFailure = 
-      (status === 302 && (location.includes("/login") || location.includes("accounts/login"))) ||
-      status === 401 ||
-      (status === 200 && location === "");
+    // A successful login MUST return a 302 redirect to the dashboard.
+    const isSuccess = status === 302 && location.includes("/dashboard");
 
-    if (isFailure) {
+    if (!isSuccess) {
       return res.status(401).json({ success: false, message: "Invalid credentials. Please try again." });
     }
+
 
     // ── Step 3: Get user information and Bhandar locks ──────────────────
     let bhandar_code = null, bhandar_label = null, bhandar_name = null, user_type = "user", userId = null;
