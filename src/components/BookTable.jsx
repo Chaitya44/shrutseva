@@ -164,7 +164,9 @@ export default function BookTable({ books, activeLang = 'Gujarati', searchQuery 
             name: detail.book_name,
             part: detail.part,
             alternateName: detail.alternate_name,
-            kruti: detail.Kruti,
+            // detail.Kruti comes from MasterData.Kruti (often empty).
+            // Fall back to book.kruti which comes from the `kruti` table via advance search.
+            kruti: detail.Kruti || bookObj?.kruti || '',
             author: detail.author,
             editor: detail.editor,
             languageFull: detail.lang_name,
