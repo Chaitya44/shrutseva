@@ -110,6 +110,28 @@ export default function AddBook() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [sizes, setSizes] = useState([]);
+
+  useEffect(() => {
+    if (!selectedBhandar) return;
+    let active = true;
+    const fetchSizes = async () => {
+      try {
+        const res = await fetch(`/front/booksize_dropdown?bhandar_code=${encodeURIComponent(selectedBhandar)}`);
+        const json = await res.json();
+        if (json.status === true && active && Array.isArray(json.data)) {
+          const list = json.data.map(item => item.size);
+          setSizes(list);
+        }
+      } catch (err) {
+        console.error("Failed to fetch book sizes:", err);
+      }
+    };
+    fetchSizes();
+    return () => {
+      active = false;
+    };
+  }, [selectedBhandar]);
 
   useEffect(() => {
     let active = true;
@@ -276,7 +298,7 @@ export default function AddBook() {
 
         {/* Unified Layout Input Grid */}
         <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-5">
-          <SelectField icon={Layers} label="Size" name="size" value={form.size} onChange={handleChange} options={['Select book size', 'A', 'B', 'C', 'D']} />
+          <SelectField icon={Layers} label="Size" name="size" value={form.size} onChange={handleChange} options={['Select book size', ...sizes]} />
           <FieldInput icon={Hash} label="Number" name="num" value={form.num} onChange={handleChange} placeholder="Enter book number" />
           <div className="sm:col-span-2 md:col-span-1 xl:col-span-1">
             <FieldInput icon={Type} label="Name" name="name" value={form.name} onChange={handleChange} placeholder="Enter book name" />
