@@ -47,24 +47,35 @@ export default async function handler(req, res) {
     });
 
     const status = loginRes.status;
-    const location = loginRes.headers.get("location") || "";
     const newCookies = extractCookies(loginRes.headers.get("set-cookie") || "") || cookies;
 
-    console.log("front_login status:", status, "location:", location);
+    console.log("front_login status:", status);
 
     // Validate login success:
-    // A successful login MUST return a 302 redirect to the dashboard.
-    const isSuccess = status === 302 && location.includes("/dashboard");
-
-    if (!isSuccess) {
+    // If successful, Laravel returns a 200 JSON response with success: true and bhandar data.
+    if (status !== 200) {
       return res.status(401).json({ success: false, message: "Invalid credentials. Please try again." });
     }
 
+    let loginData = {};
+    try {
+      loginData = await loginRes.json();
+    } catch (_) {
+      return res.status(401).json({ success: false, message: "Invalid response from authentication server." });
+    }
+
+    if (!loginData || !loginData.success) {
+      return res.status(401).json({ success: false, message: loginData.message || "Invalid credentials. Please try again." });
+    }
 
     // ── Step 3: Get user information and Bhandar locks ──────────────────
-    let bhandar_code = null, bhandar_label = null, bhandar_name = null, user_type = "user", userId = null;
+    let bhandar_code  = loginData.bhandar_code || null;
+    let bhandar_label = loginData.bhandar_label || null;
+    let bhandar_name  = loginData.bhandar_name || null;
+    let user_type     = loginData.user_type || "user";
+    let userId          = null;
 
-    // Fetch the user ID by searching for their username in /get_user_list
+    // Optional: fetch user ID for admin (so they see bhandars list count)
     try {
       const userListRes = await fetch(
         `${BASE}/get_user_list?search_value=${encodeURIComponent(username)}&length=5`,
@@ -84,65 +95,13 @@ export default async function handler(req, res) {
         );
         if (found) {
           userId = found.id;
-          // Set user_type based on whether the username matches 'admin' or if they are admin
-          user_type = username.toLowerCase().trim() === 'admin' ? 'admin' : 'user';
-          console.log("Found userId:", userId, "user_type:", user_type);
+          console.log("Resolved userId from list:", userId);
         }
       }
     } catch (e) {
-      console.log("get_user_list error:", e.message);
+      console.log("get_user_list (optional) error:", e.message);
     }
 
-    // Fetch Bhandars assigned to the user
-    if (userId) {
-      try {
-        // 1) Try usertype=0 (regular locked user)
-        let bRes = await fetch(
-          `${BASE}/get_bhandars_list?userId=${userId}&usertype=0&length=-1`,
-          {
-            headers: {
-              Accept: "application/json",
-              Cookie: newCookies,
-              "User-Agent": "Mozilla/5.0",
-            },
-          }
-        );
-        if (bRes.ok) {
-          const bd = await bRes.json();
-          const bhandars = bd.data || [];
-          console.log("get_bhandars_list (usertype=0) count:", bhandars.length);
-          
-          if (bhandars.length > 0) {
-            const b = bhandars[0];
-            bhandar_code  = b.bhandar_code;
-            bhandar_label = (b.sname || "") + (b.city ? " : " + b.city : "");
-            bhandar_name  = b.name || null;
-            user_type     = "user"; // Lock to this bhandar
-          } else {
-            // 2) If usertype=0 was empty, check if usertype=1 (admin) returns list
-            const bResAdmin = await fetch(
-              `${BASE}/get_bhandars_list?userId=${userId}&usertype=1&length=-1`,
-              {
-                headers: {
-                  Accept: "application/json",
-                  Cookie: newCookies,
-                  "User-Agent": "Mozilla/5.0",
-                },
-              }
-            );
-            if (bResAdmin.ok) {
-              const bdAdmin = await bResAdmin.json();
-              const bhandarsAdmin = bdAdmin.data || [];
-              if (bhandarsAdmin.length > 0) {
-                user_type = "admin"; // Unlocked admin user
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.log("get_bhandars_list error:", e.message);
-      }
-    }
 
 
     // Collect all Set-Cookie headers from both responses to pass back to the client
