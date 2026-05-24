@@ -100,7 +100,6 @@ export default defineConfig({
         target: 'https://www.shrutseva.com/test',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     }
   }
