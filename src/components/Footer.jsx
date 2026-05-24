@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import tyagLogo from '../assets/tyag-trust-logo.png';
 
-const GOOGLE_PLAY_BADGE = 'https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png';
+const GOOGLE_PLAY_BADGE = 'https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg';
 
 export default function Footer() {
   return (
