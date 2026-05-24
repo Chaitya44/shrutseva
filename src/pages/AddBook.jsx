@@ -284,7 +284,50 @@ export default function AddBook() {
         alert(json.message || "Successfully added book entry!");
         handleClear();
       } else {
-        alert(json.Error || "Failed to add book entry.");
+        const errMsg = json.Error || '';
+        if (errMsg.includes("not available in bhandar please add first")) {
+          const confirmAdd = window.confirm(
+            `Book Size "${form.size}" is not configured in this Bhandar. Would you like to automatically configure it now?`
+          );
+          if (confirmAdd) {
+            try {
+              const addSizeRes = await fetch('/api/front/add_booksize', {
+                method: 'POST',
+                headers: {
+                  'X-Requested-With': 'XMLHttpRequest',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  book_size: form.size,
+                  book_description: 'Auto-configured size',
+                  bhandar_id: selectedBhandar
+                })
+              });
+              const addSizeJson = await addSizeRes.json();
+              if (addSizeRes.ok) {
+                alert(`Successfully added size "${form.size}" to this Bhandar! Retrying book addition...`);
+                
+                // Reload sizes list
+                const sizesRes = await fetch(`/front/booksize_dropdown?bhandar_code=${encodeURIComponent(selectedBhandar)}`);
+                const sizesJson = await sizesRes.json();
+                if (sizesJson.status === true && Array.isArray(sizesJson.data)) {
+                  const list = sizesJson.data.map(item => item.size);
+                  setSizes(list);
+                }
+                
+                // Retry adding the book
+                setTimeout(() => { handleAddBookSubmit(); }, 500);
+                return;
+              } else {
+                alert("Failed to auto-configure book size: " + (addSizeJson.warning || "Unknown error"));
+              }
+            } catch (sizeErr) {
+              alert("Error occurred while auto-configuring book size: " + sizeErr.message);
+            }
+          }
+        } else {
+          alert(errMsg || "Failed to add book entry.");
+        }
       }
     } catch (err) {
       console.error("Failed to add book:", err);
