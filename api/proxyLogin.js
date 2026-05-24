@@ -11,6 +11,31 @@ export default async function handler(req, res) {
   const BASE = "https://www.shrutseva.com/test";
 
   try {
+    // ── Step 0: Validate credentials with /react_login ──────────────────
+    const reactLoginUrl = `${BASE}/react_login?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+    const reactLoginRes = await fetch(reactLoginUrl, {
+      headers: { "User-Agent": "Mozilla/5.0", Accept: "application/json" }
+    });
+
+    if (!reactLoginRes.ok) {
+      let errorMsg = "Invalid credentials. Please try again.";
+      try {
+        const errJson = await reactLoginRes.json();
+        if (errJson && errJson.message) errorMsg = errJson.message;
+      } catch (_) {}
+      return res.status(401).json({ success: false, message: errorMsg });
+    }
+
+    const reactLoginData = await reactLoginRes.json();
+    if (!reactLoginData || !reactLoginData.success) {
+      return res.status(401).json({ success: false, message: reactLoginData?.message || "Invalid credentials." });
+    }
+
+    const dbUserType     = reactLoginData.user_type || null;
+    const dbBhandarCode  = reactLoginData.bhandar_code || null;
+    const dbBhandarLabel = reactLoginData.bhandar_label || null;
+    const dbBhandarName  = reactLoginData.bhandar_name || null;
+
     // ── Step 1: Get CSRF token from login page ──────────────────────────
     const loginPageRes = await fetch(`${BASE}/accounts/login`, {
       headers: { "User-Agent": "Mozilla/5.0", Accept: "text/html" },
@@ -52,30 +77,13 @@ export default async function handler(req, res) {
 
     console.log("front_login status:", status, "location:", location);
 
-    // Detect failure: redirected back to login page
-    if (
-      (status === 302 && (location.includes("/login") || location.includes("accounts/login"))) ||
-      status === 401 ||
-      (status === 200 && location === "")
-    ) {
-      // Try to read JSON error
-      let msg = "Invalid credentials. Please try again.";
-      try {
-        const ct = loginRes.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const d = await loginRes.json();
-          msg = d.message || msg;
-        }
-      } catch (_) {}
-      return res.status(401).json({ success: false, message: msg });
-    }
-
     // ── Step 3: Get bhandar via get_bhandars_list with session cookie ───
     // We know the user is now logged in. We need their userId.
     // get_bhandars_list is public (no auth needed) but we need userId.
     // We'll fetch the dashboard page to extract the user id from it,
     // OR call get_user_list (requires auth) with the session cookie.
-    let bhandar_code = null, bhandar_label = null, bhandar_name = null, user_type = null, userId = null;
+    let bhandar_code = dbBhandarCode, bhandar_label = dbBhandarLabel, bhandar_name = dbBhandarName, user_type = dbUserType, userId = null;
+
 
     // Try get_user_list (requires auth session)
     try {
